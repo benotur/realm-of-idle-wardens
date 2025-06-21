@@ -26,14 +26,11 @@ realm-of-idle-wardens
 ├── src
 │   ├── app.js
 │   ├── firebase.js
+│   ├── leaderboard.js
 │   ├── game
 │   │   ├── engine.js
 │   │   ├── state.js
 │   │   └── ui.js
-│   └── components
-│       ├── Tower.js
-│       ├── Enemy.js
-│       └── Player.js
 ├── package.json
 ├── .gitignore
 └── README.md

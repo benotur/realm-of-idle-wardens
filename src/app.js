@@ -60,9 +60,10 @@ let heroAnimTimer = 0;
 let heroAnimPlaying = false;
 let heroAnimQueue = [];
 
-// --- Floating Gold & Damage Logic ---
+// --- Floating Gold, Damage & Heal Logic ---
 let floatingGolds = [];
 let floatingDamages = [];
+let floatingHeals = [];
 function showFloatingGold(x, y, amount) {
   floatingGolds.push({ x, y, amount, alpha: 1, vy: -0.5 });
 }
@@ -72,6 +73,11 @@ function showFloatingDamage(x, y, amount) {
   floatingDamages.push({ x, y, amount, alpha: 1, vy: -0.7 });
 }
 window.showFloatingDamage = showFloatingDamage;
+
+function showFloatingHeal(x, y, amount) {
+  floatingHeals.push({ x, y, amount, alpha: 1, vy: -0.7 });
+}
+window.showFloatingHeal = showFloatingHeal;
 
 // --- Helper: Username to Email ---
 function usernameToEmail(username) {
@@ -126,8 +132,8 @@ function loadLeaderboard(force = false) {
     }
     entries.sort((a, b) => b.wave - a.wave);
     leaderboardEl.innerHTML = entries.slice(0, 10).map((entry, i) =>
-      `<li style="padding:6px 12px;${i===0?'font-weight:bold;color:#bfa76f;':''}">
-        ${i+1}. ${entry.username} <span style="float:right;">Wave ${entry.wave}</span>
+      `<li style="padding:6px 12px;${i === 0 ? 'font-weight:bold;color:#bfa76f;' : ''}">
+        ${i + 1}. ${entry.username} <span style="float:right;">Wave ${entry.wave}</span>
       </li>`
     ).join('');
     if (entries.length === 0) leaderboardEl.innerHTML = '<li style="text-align:center;color:#888;">No data yet.</li>';
@@ -431,10 +437,100 @@ function stopGame() {
   ctx.fillText("Please log in to play.", 60, 200);
 }
 
+let flameArrowsCooldown = 0;
+let flameArrowsActive = 0;
+let healCooldown = 0;
+let freezeCooldown = 0;
+let freezeActive = 0;
+
+window.flameArrowsCooldown = flameArrowsCooldown;
+window.flameArrowsActive = flameArrowsActive;
+window.healCooldown = healCooldown;
+window.freezeCooldown = freezeCooldown;
+
+function useFlameArrows() {
+  if (flameArrowsCooldown > 0 || gameState.gold < 50) return;
+  gameState.gold -= 50;
+  flameArrowsCooldown = 12;
+  flameArrowsActive = 5;
+  window.flameArrowsCooldown = flameArrowsCooldown;
+  window.flameArrowsActive = flameArrowsActive;
+  updateUI();
+  saveProgress();
+}
+function useHeal() {
+  if (healCooldown > 0 || gameState.gold < 40) return;
+  gameState.gold -= 40;
+  healCooldown = 12;
+  window.healCooldown = healCooldown;
+  const healAmount = Math.floor(gameState.hero.maxHp * 0.5);
+  gameState.hero.hp = Math.min(gameState.hero.maxHp, gameState.hero.hp + healAmount);
+  if (window.showFloatingHeal) window.showFloatingHeal(gameState.hero.x, gameState.hero.y - 40, "+" + healAmount);
+  updateUI();
+  saveProgress();
+}
+function useFreeze() {
+  if (freezeCooldown > 0 || gameState.gold < 60) return;
+  gameState.gold -= 60;
+  freezeCooldown = 15;
+  window.freezeCooldown = freezeCooldown;
+  freezeActive = 2; // 2 seconds stun
+  updateUI();
+  saveProgress();
+}
+
+// Attach to buttons
+document.getElementById('skill-flame-arrows').onclick = useFlameArrows;
+document.getElementById('skill-heal').onclick = useHeal;
+document.getElementById('skill-freeze').onclick = useFreeze;
+
 function gameLoop(now) {
   if (!gameRunning) return;
   const dt = (now - lastTime) / 1000;
   lastTime = now;
+
+  // Skill cooldowns
+  if (flameArrowsCooldown > 0) flameArrowsCooldown -= dt;
+  if (flameArrowsActive > 0) flameArrowsActive -= dt;
+  if (healCooldown > 0) healCooldown -= dt;
+  if (freezeCooldown > 0) freezeCooldown -= dt;
+  window.flameArrowsCooldown = flameArrowsCooldown;
+  window.flameArrowsActive = flameArrowsActive;
+  window.healCooldown = healCooldown;
+  window.freezeCooldown = freezeCooldown;
+  if (freezeActive > 0) {
+    freezeActive -= dt;
+    // Freeze all enemies
+    for (const enemy of gameState.enemies) {
+      enemy.speed = 0;
+    }
+  } else {
+    // Restore normal speed
+    for (const enemy of gameState.enemies) {
+      enemy.speed = 30 + gameState.wave * 2;
+    }
+  }
+
+  // Fireball logic
+  if (gameState.fireballs) {
+    for (const fireball of gameState.fireballs) {
+      fireball.t += dt;
+      if (!fireball.hit && fireball.t >= fireball.duration) {
+        // Hit all enemies in radius
+        for (const enemy of gameState.enemies) {
+          const dx = enemy.x - fireball.x;
+          const dy = enemy.y - fireball.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 120) {
+            enemy.hp -= 40;
+            if (window.showFloatingDamage) window.showFloatingDamage(enemy.x, enemy.y, "-40");
+          }
+        }
+        fireball.hit = true;
+      }
+    }
+    // Remove finished fireballs
+    gameState.fireballs = gameState.fireballs.filter(f => f.t < f.duration + 0.3);
+  }
 
   updateGame(dt);
   updateUI();
@@ -530,6 +626,14 @@ function draw(now) {
         enemyAnim.frameWidth
       );
     }
+    // Freeze blue overlay
+    if (freezeActive > 0) {
+      ctx.save();
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle = "#3399ff";
+      ctx.fillRect(enemy.x - orcDrawSize / 2, enemy.y - orcDrawSize / 2, orcDrawSize, orcDrawSize);
+      ctx.restore();
+    }
     drawHpBar(
       enemy.x - 36,
       enemy.y - 30,
@@ -543,6 +647,10 @@ function draw(now) {
   // Draw projectiles (arrows, bigger)
   for (const arrow of gameState.arrows || []) {
     const arrowFlip = getArrowFlip(arrow);
+    ctx.save();
+    if (arrow.flame) {
+      ctx.filter = "brightness(1.2) sepia(1) hue-rotate(-30deg) saturate(4)";
+    }
     if (arrowFlip) {
       drawSpriteFlipped(
         arrowSprite,
@@ -563,6 +671,22 @@ function draw(now) {
         0,
         100
       );
+    }
+    ctx.restore();
+  }
+
+  // Draw fireballs (orange obstacles)
+  if (gameState.fireballs) {
+    for (const fireball of gameState.fireballs) {
+      ctx.save();
+      ctx.globalAlpha = 0.8;
+      ctx.beginPath();
+      ctx.arc(fireball.x, fireball.y, fireball.radius, 0, Math.PI * 2);
+      ctx.fillStyle = "#ff8800";
+      ctx.shadowColor = "#ff6600";
+      ctx.shadowBlur = 16;
+      ctx.fill();
+      ctx.restore();
     }
   }
 
@@ -598,6 +722,23 @@ function draw(now) {
     fd.y += fd.vy;
     fd.alpha -= 0.025;
     if (fd.alpha <= 0) floatingDamages.splice(i, 1);
+  }
+
+  // Draw floating heal numbers (green)
+  for (let i = floatingHeals.length - 1; i >= 0; i--) {
+    const fh = floatingHeals[i];
+    ctx.save();
+    ctx.globalAlpha = fh.alpha;
+    ctx.font = "bold 20px Georgia";
+    ctx.fillStyle = "#44ff44";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 2;
+    ctx.strokeText(fh.amount, fh.x, fh.y);
+    ctx.fillText(fh.amount, fh.x, fh.y);
+    ctx.restore();
+    fh.y += fh.vy;
+    fh.alpha -= 0.025;
+    if (fh.alpha <= 0) floatingHeals.splice(i, 1);
   }
 }
 

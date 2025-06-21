@@ -46,6 +46,7 @@
                 <h1>Realm of Idle Wardens</h1>
                 <div id="hud">
                     <span id="gold">Gold: 0</span>
+                    <span id="wave-counter" style="margin-left:12px;">0 / 0</span>
                     <span id="wave">Wave: 1</span>
                 </div>
                 <canvas id="game-canvas" width="400" height="400"></canvas>
@@ -56,7 +57,7 @@
                 </div>
             </div>
         </div>
-        <div id="stats-panel" style="width:220px; margin-left:24px;">
+        <div id="stats-panel" style="width:220px; margin-left:24px; right:32px;">
             <h2 style="font-size:1.3em; text-align:center; margin-bottom:8px;">Stats</h2>
             <ul id="stats-list"
                 style="list-style:none; padding:0; margin:0; background:#f5e6c8; border-radius:10px; border:2px solid #bfa76f; min-height:120px;">
@@ -65,6 +66,11 @@
                 <li style="padding:8px 12px;"><b>Attack Speed:</b> <span id="stats-attack-speed">1.00</span></li>
             </ul>
         </div>
+    </div>
+    <div id="skills-bar">
+<button id="skill-flame-arrows" class="skill-btn" title="Flame Arrows: Shoot burning arrows for 5s.">🔥 Flame Arrows</button>
+        <button id="skill-heal" class="skill-btn" title="Heal: Restore 50% of your max HP.">💚 Heal</button>
+        <button id="skill-freeze" class="skill-btn" title="Freeze: Stun all enemies for 2s.">❄️ Freeze</button>
     </div>
     <script src="../src/app.js" type="module"></script>
 </body>

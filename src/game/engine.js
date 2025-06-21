@@ -56,6 +56,18 @@ export function updateGame(dt) {
 
     enemy.attackCooldown = Math.max(0, enemy.attackCooldown - dt);
 
+    // Burning effect (flame arrows)
+    if (enemy.burn && enemy.burn.time > 0) {
+      enemy.burn.time -= dt;
+      if (!enemy.burn.tick) enemy.burn.tick = 0;
+      enemy.burn.tick += dt;
+      if (enemy.burn.tick >= 1) {
+        enemy.hp -= enemy.burn.dps;
+        if (window.showFloatingDamage) window.showFloatingDamage(enemy.x, enemy.y, "-" + enemy.burn.dps);
+        enemy.burn.tick = 0;
+      }
+    }
+
     if (enemy.anim === 'attack' && enemy.animPlaying) {
       enemy.animTimer += dt;
       const frameDuration = 0.10;
@@ -94,7 +106,7 @@ export function updateGame(dt) {
 
   gameState.enemies = gameState.enemies.filter(e => e.hp > 0);
 
-    gameState.hero.attackCooldown -= dt;
+  gameState.hero.attackCooldown -= dt;
   if (gameState.hero.attackCooldown <= 0) {
     let minDist = Infinity;
     let target = null;
@@ -117,6 +129,7 @@ export function updateGame(dt) {
           vy: (target.y - gameState.hero.y) / minDist * 400,
           damage: gameState.hero.attack,
           hit: false,
+          flame: window.flameArrowsActive > 0 // Mark as flame arrow if skill active
         });
         gameState.hero.attackCooldown = 1 / gameState.hero.attackSpeed;
       } else if (minDist <= 60) {
@@ -146,6 +159,9 @@ export function updateGame(dt) {
       if (!arrow.hit && distance(arrow, enemy) < 30) {
         enemy.hp -= arrow.damage;
         if (window.showFloatingDamage) window.showFloatingDamage(enemy.x, enemy.y, "-" + arrow.damage);
+        if (arrow.flame) {
+          enemy.burn = { time: 3, dps: 5 }; // Apply burning effect
+        }
         arrow.hit = true;
         if (enemy.hp <= 0) {
           gameState.gold += 10;
