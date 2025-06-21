@@ -60,6 +60,19 @@ let heroAnimTimer = 0;
 let heroAnimPlaying = false;
 let heroAnimQueue = [];
 
+function showWavePopup(wave) {
+  const popup = document.getElementById('wave-popup');
+  const popupText = document.getElementById('wave-popup-text');
+  if (popup && popupText) {
+    popupText.textContent = `Wave ${wave}`;
+    popup.style.display = 'block';
+    setTimeout(() => {
+      popup.style.display = 'none';
+    }, 1500); // Show for 1.5 seconds
+  }
+}
+window.showWavePopup = showWavePopup;
+
 // --- Floating Gold, Damage & Heal Logic ---
 let floatingGolds = [];
 let floatingDamages = [];
@@ -126,16 +139,18 @@ function loadLeaderboard(force = false) {
     for (const uid in users) {
       const profile = users[uid].profile || {};
       const progress = users[uid].progress || {};
-      entries.push({
-        username: profile.username || 'Unknown',
-        wave: progress.wave || 1
-      });
+      if (profile.username && progress.wave) {
+        entries.push({
+          username: profile.username,
+          wave: progress.wave
+        });
+      }
     }
     entries.sort((a, b) => b.wave - a.wave);
     leaderboardEl.innerHTML = entries.slice(0, 10).map((entry, i) =>
       `<li style="padding:6px 12px;${i === 0 ? 'font-weight:bold;color:#bfa76f;' : ''}">
-        ${i + 1}. ${entry.username} <span style="float:right;">Wave ${entry.wave}</span>
-      </li>`
+      ${i + 1}. ${entry.username} <span style="float:right;">Wave ${entry.wave}</span>
+    </li>`
     ).join('');
     if (entries.length === 0) leaderboardEl.innerHTML = '<li style="text-align:center;color:#888;">No data yet.</li>';
     // Add/update refresh counter
@@ -172,6 +187,7 @@ startLeaderboardInterval();
 
 // --- Auth State Listener ---
 auth.onAuthStateChanged(user => {
+  if (isDeletingAccount) return;
   if (user) {
     authForms.style.display = 'none';
     profileSection.style.display = '';
@@ -191,7 +207,7 @@ auth.onAuthStateChanged(user => {
         gameState.hero.maxHp = progress.maxHp || 100;
         gameState.hero.attack = progress.damage || 10;
         gameState.hero.attackSpeed = progress.attackSpeed || 1;
-        gameState.upgradeLevels = progress.upgradeLevels || { damage: 0, hp: 0, attackSpeed: 0 }; // <-- add this
+        gameState.upgradeLevels = progress.upgradeLevels || { damage: 0, hp: 0, attackSpeed: 0 };
       }
       startGame();
       loadLeaderboard();
@@ -287,16 +303,51 @@ changePasswordBtn && (changePasswordBtn.onclick = () => {
   }
 });
 
+// --- Delete Account ---
+let isDeletingAccount = false;
+
 deleteAccountBtn && (deleteAccountBtn.onclick = async () => {
   const user = auth.currentUser;
-  if (user && confirm('Are you sure you want to delete your account?')) {
-    const profileSnap = await db.ref('users/' + user.uid + '/profile').once('value');
-    const username = profileSnap.val()?.username;
-    if (username) {
-      await db.ref('usernames/' + username).remove();
+  if (!user) return;
+  if (!confirm('Are you sure you want to delete your account?')) return;
+
+  isDeletingAccount = true; // Prevents onAuthStateChanged from writing
+
+  // Remove username from /usernames
+  const profileSnap = await db.ref('users/' + user.uid + '/profile').once('value');
+  const username = profileSnap.val()?.username;
+  if (username) {
+    await db.ref('usernames/' + username).remove();
+  }
+
+  // Remove ALL user data from /users/{uid}
+  await db.ref('users/' + user.uid).remove();
+
+  // Try to delete the auth user
+  try {
+    await user.delete();
+    alert('Account deleted.');
+    await auth.signOut();
+    window.location.reload();
+  } catch (e) {
+    if (e.code === 'auth/requires-recent-login') {
+      const password = prompt("Please enter your password to confirm account deletion:");
+      if (password) {
+        try {
+          const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
+          await user.reauthenticateWithCredential(credential);
+          await db.ref('users/' + user.uid).remove();
+          await user.delete();
+          alert('Account deleted.');
+          await auth.signOut();
+          window.location.reload();
+        } catch (reauthErr) {
+          alert('Re-authentication failed: ' + reauthErr.message);
+        }
+      }
+    } else {
+      alert('Error deleting account: ' + e.message);
     }
-    await db.ref('users/' + user.uid).remove();
-    user.delete().catch(e => alert(e.message));
   }
 });
 
@@ -546,6 +597,7 @@ function gameLoop(now) {
       gameState.enemies = [];
       spawnWave(gameState.wave);
       playHeroAnimation('idle');
+      if (window.showWavePopup) window.showWavePopup(gameState.wave);
     }, 1000);
   }
 

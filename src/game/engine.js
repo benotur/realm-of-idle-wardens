@@ -195,6 +195,7 @@ export function updateGame(dt) {
   ) {
     gameState.wave += 1;
     if (window.saveProgress) window.saveProgress();
+    if (window.showWavePopup) window.showWavePopup(gameState.wave);
     spawnWave(gameState.wave);
   }
 }

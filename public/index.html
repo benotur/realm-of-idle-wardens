@@ -56,6 +56,13 @@
                     <button id="upgrade-attack-speed">Upgrade Attack Speed (100g)</button>
                 </div>
             </div>
+            <div id="wave-popup"
+                style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; z-index:200; pointer-events:none;">
+                <div style="position:absolute; left:50%; top:40%; transform:translate(-50%,-50%); background:rgba(245,230,200,0.98); border:4px solid #bfa76f; border-radius:18px; padding:36px 64px; font-size:2.5em; color:#bfa76f; font-family:'MedievalSharp','Georgia',serif; box-shadow:0 0 32px #000a; text-align:center;"
+                    id="wave-popup-text">
+                    Wave 1
+                </div>
+            </div>
         </div>
         <div id="stats-panel" style="width:220px; margin-left:24px; right:32px;">
             <h2 style="font-size:1.3em; text-align:center; margin-bottom:8px;">Stats</h2>
@@ -68,7 +75,8 @@
         </div>
     </div>
     <div id="skills-bar">
-<button id="skill-flame-arrows" class="skill-btn" title="Flame Arrows: Shoot burning arrows for 5s.">🔥 Flame Arrows</button>
+        <button id="skill-flame-arrows" class="skill-btn" title="Flame Arrows: Shoot burning arrows for 5s.">🔥 Flame
+            Arrows</button>
         <button id="skill-heal" class="skill-btn" title="Heal: Restore 50% of your max HP.">💚 Heal</button>
         <button id="skill-freeze" class="skill-btn" title="Freeze: Stun all enemies for 2s.">❄️ Freeze</button>
     </div>

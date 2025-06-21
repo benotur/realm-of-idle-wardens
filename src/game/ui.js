@@ -53,12 +53,12 @@ export function updateUI() {
   }
   const hpBtn = document.getElementById('upgrade-hp');
   if (hpBtn) {
-    const price = Math.floor(100 * Math.pow(1.15, gameState.upgradeLevels?.hp || 0));
+    const price = Math.floor(200 * Math.pow(1.15, gameState.upgradeLevels?.hp || 0));
     hpBtn.textContent = `Upgrade HP (${price}g)`;
   }
   const atkSpdBtn = document.getElementById('upgrade-attack-speed');
   if (atkSpdBtn) {
-    const price = Math.floor(100 * Math.pow(1.15, gameState.upgradeLevels?.attackSpeed || 0));
+    const price = Math.floor(300 * Math.pow(1.15, gameState.upgradeLevels?.attackSpeed || 0));
     atkSpdBtn.textContent = `Upgrade Attack Speed (${price}g)`;
   }
 }
