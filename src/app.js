@@ -171,6 +171,7 @@ deleteAccountBtn && (deleteAccountBtn.onclick = async () => {
 function startGame() {
   if (!gameRunning) {
     gameRunning = true;
+    spawnWave(gameState.wave);
     updateUI();
     gameLoop(lastTime);
   }
