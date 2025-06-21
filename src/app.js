@@ -95,7 +95,8 @@ function saveProgress() {
       hp: gameState.hero.hp,
       maxHp: gameState.hero.maxHp,
       damage: gameState.hero.attack,
-      attackSpeed: gameState.hero.attackSpeed
+      attackSpeed: gameState.hero.attackSpeed,
+      upgradeLevels: gameState.upgradeLevels
     });
     loadLeaderboard();
   }
@@ -190,6 +191,7 @@ auth.onAuthStateChanged(user => {
         gameState.hero.maxHp = progress.maxHp || 100;
         gameState.hero.attack = progress.damage || 10;
         gameState.hero.attackSpeed = progress.attackSpeed || 1;
+        gameState.upgradeLevels = progress.upgradeLevels || { damage: 0, hp: 0, attackSpeed: 0 }; // <-- add this
       }
       startGame();
       loadLeaderboard();
@@ -766,28 +768,41 @@ function drawHpBar(x, y, width, height, hp, maxHp) {
   ctx.textAlign = "left";
 }
 
+//Upgrade Prices
+function getUpgradePrice(type) {
+  const basePrices = { damage: 100, hp: 200, attackSpeed: 300 };
+  const level = gameState.upgradeLevels[type] || 0;
+  return Math.floor(basePrices[type] * Math.pow(1.15, level));
+}
+
 // --- Upgrade Buttons ---
 document.getElementById('upgrade-damage') && (document.getElementById('upgrade-damage').onclick = () => {
-  if (gameState.gold >= 100) {
-    gameState.gold -= 100;
+  const price = getUpgradePrice('damage');
+  if (gameState.gold >= price) {
+    gameState.gold -= price;
     gameState.hero.attack += 5;
+    gameState.upgradeLevels.damage = (gameState.upgradeLevels.damage || 0) + 1;
     updateUI();
     saveProgress();
   }
 });
 document.getElementById('upgrade-hp') && (document.getElementById('upgrade-hp').onclick = () => {
-  if (gameState.gold >= 100) {
-    gameState.gold -= 100;
+  const price = getUpgradePrice('hp');
+  if (gameState.gold >= price) {
+    gameState.gold -= price;
     gameState.hero.maxHp += 20;
     gameState.hero.hp = gameState.hero.maxHp;
+    gameState.upgradeLevels.hp = (gameState.upgradeLevels.hp || 0) + 1;
     updateUI();
     saveProgress();
   }
 });
 document.getElementById('upgrade-attack-speed') && (document.getElementById('upgrade-attack-speed').onclick = () => {
-  if (gameState.gold >= 100) {
-    gameState.gold -= 100;
+  const price = getUpgradePrice('attackSpeed');
+  if (gameState.gold >= price) {
+    gameState.gold -= price;
     gameState.hero.attackSpeed += 0.1;
+    gameState.upgradeLevels.attackSpeed = (gameState.upgradeLevels.attackSpeed || 0) + 1;
     updateUI();
     saveProgress();
   }

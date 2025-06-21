@@ -15,4 +15,9 @@ export const gameState = {
   waveEnemiesToSpawn: 0,
   waveEnemiesSpawned: 0,
   enemySpawnTimer: 0,
+  upgradeLevels: {
+    damage: 0,
+    hp: 0,
+    attackSpeed: 0,
+  }
 };

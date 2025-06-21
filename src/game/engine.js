@@ -4,6 +4,12 @@ function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+// Gold reward scales with wave
+function getMobGoldReward() {
+  // Base 10 gold, +2 per wave after wave 1
+  return 10 + (gameState.wave - 1) * 2;
+}
+
 export function spawnEnemy() {
   const edge = Math.floor(Math.random() * 4);
   let x, y;
@@ -137,8 +143,9 @@ export function updateGame(dt) {
         target.hp -= gameState.hero.attack;
         if (window.showFloatingDamage) window.showFloatingDamage(target.x, target.y, "-" + gameState.hero.attack);
         if (target.hp <= 0) {
-          gameState.gold += 10;
-          if (window.showFloatingGold) window.showFloatingGold(target.x, target.y, "+10");
+          const goldReward = getMobGoldReward();
+          gameState.gold += goldReward;
+          if (window.showFloatingGold) window.showFloatingGold(target.x, target.y, "+" + goldReward);
           if (window.saveProgress) window.saveProgress();
         }
         if (window.queueHeroAnimation) {
@@ -164,8 +171,9 @@ export function updateGame(dt) {
         }
         arrow.hit = true;
         if (enemy.hp <= 0) {
-          gameState.gold += 10;
-          if (window.showFloatingGold) window.showFloatingGold(enemy.x, enemy.y, "+10");
+          const goldReward = getMobGoldReward();
+          gameState.gold += goldReward;
+          if (window.showFloatingGold) window.showFloatingGold(enemy.x, enemy.y, "+" + goldReward);
           if (window.saveProgress) window.saveProgress();
         }
       }
