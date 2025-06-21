@@ -45,9 +45,11 @@ heroSprites.hurt.img.src = 'assets/characters/soldier/soldierwithshadows/Soldier
 
 // Example enemy sprite (update path as needed)
 const enemySprites = {
-  walk: { img: new Image(), frames: 8, frameWidth: 100, frameHeight: 100 }
+  walk: { img: new Image(), frames: 8, frameWidth: 100, frameHeight: 100 },
+  attack: { img: new Image(), frames: 6, frameWidth: 100, frameHeight: 100 } // adjust frames if needed
 };
 enemySprites.walk.img.src = 'assets/characters/orc/orcwithshadows/Orc-Walk.png';
+enemySprites.attack.img.src = 'assets/characters/orc/orcwithshadows/Orc-Attack01.png';
 
 const arrowSprite = new Image();
 arrowSprite.src = 'assets/characters/soldier/Arrow(projectile)/Arrow01(100x100).png';
@@ -188,13 +190,23 @@ function playHeroAnimation(anim, force = false) {
     heroAnimFrame = 0;
     heroAnimTimer = 0;
     heroAnimPlaying = true;
+    window.heroAnim = heroAnim;
   }
 }
 
 function queueHeroAnimation(anim) {
   heroAnimQueue.push(anim);
 }
+window.queueHeroAnimation = queueHeroAnimation;
 
+// --- Floating Gold Logic ---
+let floatingGolds = [];
+function showFloatingGold(x, y, amount) {
+  floatingGolds.push({ x, y, amount, alpha: 1, vy: -0.5 });
+}
+window.showFloatingGold = showFloatingGold;
+
+// --- Animation Update ---
 function updateHeroAnimation(dt) {
   // Death animation
   if (heroAnim === 'death' && heroAnimPlaying) {
@@ -262,31 +274,6 @@ function updateHeroAnimation(dt) {
     heroAnimFrame = (heroAnimFrame + 1) % animData.frames;
     heroAnimTimer = 0;
   }
-}
-
-let floatingGolds = [];
-function showFloatingGold(x, y, amount) {
-  floatingGolds.push({ x, y, amount, alpha: 1, vy: -0.5 });
-}
-
-// Call this when gold is gained, e.g. in engine.js after killing an enemy:
-showFloatingGold(enemy.x, enemy.y, "+10");
-
-// In your draw() function, after drawing everything else:
-for (let i = floatingGolds.length - 1; i >= 0; i--) {
-  const fg = floatingGolds[i];
-  ctx.save();
-  ctx.globalAlpha = fg.alpha;
-  ctx.font = "bold 22px EB Garamond, serif";
-  ctx.fillStyle = "#ffd700";
-  ctx.strokeStyle = "#000";
-  ctx.lineWidth = 2;
-  ctx.strokeText(fg.amount, fg.x, fg.y);
-  ctx.fillText(fg.amount, fg.x, fg.y);
-  ctx.restore();
-  fg.y += fg.vy;
-  fg.alpha -= 0.02;
-  if (fg.alpha <= 0) floatingGolds.splice(i, 1);
 }
 
 // --- Game Loop ---
@@ -360,8 +347,15 @@ function draw(now) {
 
   // Draw enemies (animated)
   for (const enemy of gameState.enemies) {
-    const enemyAnim = enemySprites.walk;
-    const enemyFrame = Math.floor((now / 100) % enemyAnim.frames);
+    let enemyAnim = enemySprites.walk;
+    let enemyFrame = 0;
+    if (enemy.anim === 'walk') {
+      enemyAnim = enemySprites.walk;
+      enemyFrame = Math.floor((now / 100) % enemyAnim.frames);
+    } else if (enemy.anim === 'attack') {
+      enemyAnim = enemySprites.attack;
+      enemyFrame = enemy.animFrame || 0;
+    }
     drawSprite(
       enemyAnim.img,
       enemy.x - 50,
@@ -392,6 +386,23 @@ function draw(now) {
       0,
       100
     );
+  }
+
+  // Draw floating gold
+  for (let i = floatingGolds.length - 1; i >= 0; i--) {
+    const fg = floatingGolds[i];
+    ctx.save();
+    ctx.globalAlpha = fg.alpha;
+    ctx.font = "bold 22px EB Garamond, serif";
+    ctx.fillStyle = "#ffd700";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 2;
+    ctx.strokeText(fg.amount, fg.x, fg.y);
+    ctx.fillText(fg.amount, fg.x, fg.y);
+    ctx.restore();
+    fg.y += fg.vy;
+    fg.alpha -= 0.02;
+    if (fg.alpha <= 0) floatingGolds.splice(i, 1);
   }
 }
 

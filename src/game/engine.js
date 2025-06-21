@@ -1,5 +1,10 @@
 import { gameState } from './state.js';
 
+// --- Helper for distance ---
+function distance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
 export function spawnEnemy() {
   const edge = Math.floor(Math.random() * 4);
   let x, y;
@@ -14,6 +19,11 @@ export function spawnEnemy() {
     maxHp: 20 + gameState.wave * 5,
     attack: 5,
     speed: 30 + gameState.wave * 2,
+    anim: 'walk',
+    animFrame: 0,
+    animTimer: 0,
+    animPlaying: false,
+    attackCooldown: 0,
   });
 }
 
@@ -42,17 +52,51 @@ function handleWaveSpawning(dt) {
 export function updateGame(dt) {
   handleWaveSpawning(dt);
 
-  // Move enemies
+  // Move enemies and handle enemy attack animation
   for (const enemy of gameState.enemies) {
     const dx = gameState.hero.x - enemy.x;
     const dy = gameState.hero.y - enemy.y;
     const dist = Math.hypot(dx, dy);
+
+    // Enemy attack logic
+    enemy.attackCooldown = Math.max(0, enemy.attackCooldown - dt);
+
+    // --- Enemy Animation Update ---
+    if (enemy.anim === 'attack' && enemy.animPlaying) {
+      enemy.animTimer += dt;
+      const frameDuration = 0.10; // seconds per frame
+      if (enemy.animTimer >= frameDuration) {
+        enemy.animFrame++;
+        enemy.animTimer = 0;
+        // 6 is the number of attack frames for orc, adjust if needed
+        if (enemy.animFrame >= 6) {
+          enemy.animFrame = 0;
+          enemy.animPlaying = false;
+          enemy.anim = 'walk';
+        }
+      }
+    }
+
     if (dist > 5) {
+      // Move enemy
       enemy.x += (dx / dist) * enemy.speed * dt;
       enemy.y += (dy / dist) * enemy.speed * dt;
+      if (enemy.anim !== 'walk') {
+        enemy.anim = 'walk';
+        enemy.animFrame = 0;
+        enemy.animTimer = 0;
+        enemy.animPlaying = true;
+      }
     } else {
-      // Enemy attacks hero
-      gameState.hero.hp -= enemy.attack * dt;
+      // Enemy is close enough to attack
+      if (enemy.attackCooldown <= 0) {
+        enemy.anim = 'attack';
+        enemy.animFrame = 0;
+        enemy.animTimer = 0;
+        enemy.animPlaying = true;
+        enemy.attackCooldown = 1; // 1 second between attacks
+        gameState.hero.hp -= enemy.attack;
+      }
     }
   }
 
@@ -67,6 +111,14 @@ export function updateGame(dt) {
       target.hp -= gameState.hero.attack;
       if (target.hp <= 0) {
         gameState.gold += 10;
+        if (window.showFloatingGold) {
+          window.showFloatingGold(target.x, target.y, "+10");
+        }
+      }
+      // --- Trigger hero attack animation ---
+      if (window.queueHeroAnimation) {
+        const attackAnim = 'attack' + (Math.floor(Math.random() * 3) + 1); // attack1, attack2, or attack3
+        window.queueHeroAnimation(attackAnim);
       }
       gameState.hero.attackCooldown = 1 / gameState.hero.attackSpeed;
     }
@@ -82,8 +134,4 @@ export function updateGame(dt) {
     gameState.wave += 1;
     spawnWave(gameState.wave);
   }
-}
-
-function distance(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
 }
