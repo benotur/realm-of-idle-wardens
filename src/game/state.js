@@ -1,9 +1,7 @@
 export const gameState = {
-  gold: 0,
-  wave: 1,
   hero: {
     x: 200,
-    y: 200,
+    y: 300,
     hp: 100,
     maxHp: 100,
     attack: 10,
@@ -11,5 +9,10 @@ export const gameState = {
     attackCooldown: 0,
   },
   enemies: [],
-  enemySpawnCooldown: 0,
+  arrows: [],
+  gold: 0,
+  wave: 1,
+  waveEnemiesToSpawn: 0,
+  waveEnemiesSpawned: 0,
+  enemySpawnTimer: 0,
 };

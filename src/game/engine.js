@@ -8,8 +8,10 @@ export function spawnEnemy() {
   if (edge === 2) { x = Math.random() * 400; y = 0; }
   if (edge === 3) { x = Math.random() * 400; y = 400; }
   gameState.enemies.push({
-    x, y,
+    x,
+    y,
     hp: 20 + gameState.wave * 5,
+    maxHp: 20 + gameState.wave * 5,
     attack: 5,
     speed: 30 + gameState.wave * 2,
   });

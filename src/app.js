@@ -25,9 +25,42 @@ const ctx = canvas.getContext('2d');
 let lastTime = performance.now();
 let gameRunning = false;
 
+// --- Sprite Assets (NEW: using your new structure, 100x100 tiles) ---
+const heroSprites = {
+  idle: { img: new Image(), frames: 6, frameWidth: 100, frameHeight: 100 },
+  walk: { img: new Image(), frames: 8, frameWidth: 100, frameHeight: 100 },
+  attack1: { img: new Image(), frames: 6, frameWidth: 100, frameHeight: 100 },
+  attack2: { img: new Image(), frames: 6, frameWidth: 100, frameHeight: 100 },
+  attack3: { img: new Image(), frames: 9, frameWidth: 100, frameHeight: 100 },
+  death: { img: new Image(), frames: 4, frameWidth: 100, frameHeight: 100 },
+  hurt: { img: new Image(), frames: 4, frameWidth: 100, frameHeight: 100 },
+};
+heroSprites.idle.img.src = 'assets/characters/soldier/soldierwithshadows/Soldier-Idle.png';
+heroSprites.walk.img.src = 'assets/characters/soldier/soldierwithshadows/Soldier-Walk.png';
+heroSprites.attack1.img.src = 'assets/characters/soldier/soldierwithshadows/Soldier-Attack01.png';
+heroSprites.attack2.img.src = 'assets/characters/soldier/soldierwithshadows/Soldier-Attack02.png';
+heroSprites.attack3.img.src = 'assets/characters/soldier/soldierwithshadows/Soldier-Attack03.png';
+heroSprites.death.img.src = 'assets/characters/soldier/soldierwithshadows/Soldier-Death.png';
+heroSprites.hurt.img.src = 'assets/characters/soldier/soldierwithshadows/Soldier-Hurt.png';
+
+// Example enemy sprite (update path as needed)
+const enemySprites = {
+  walk: { img: new Image(), frames: 8, frameWidth: 100, frameHeight: 100 }
+};
+enemySprites.walk.img.src = 'assets/characters/orc/orcwithshadows/Orc-Walk.png';
+
+const arrowSprite = new Image();
+arrowSprite.src = 'assets/characters/soldier/Arrow(projectile)/Arrow01(100x100).png';
+
+// --- Animation State ---
+let heroAnim = 'idle';
+let heroAnimFrame = 0;
+let heroAnimTimer = 0;
+let heroAnimPlaying = false;
+let heroAnimQueue = [];
+
 // --- Helper: Username to Email ---
 function usernameToEmail(username) {
-  // Only allow letters, numbers, dot, dash, underscore
   const safe = username.replace(/[^a-zA-Z0-9._-]/g, '');
   return `${safe}@realmofidlewardens.com`;
 }
@@ -38,7 +71,6 @@ auth.onAuthStateChanged(user => {
     authForms.style.display = 'none';
     profileSection.style.display = '';
     userEmailSpan.textContent = user.email;
-    // Load user profile from DB
     db.ref('users/' + user.uid + '/profile').once('value').then(snapshot => {
       const profile = snapshot.val();
       if (profile && profile.username) {
@@ -54,11 +86,9 @@ auth.onAuthStateChanged(user => {
 });
 
 // --- Auth Actions ---
-// Register with username
 registerBtn.onclick = async () => {
   let username = usernameInput.value.trim();
   const password = passwordInput.value;
-  // Sanitize username
   username = username.replace(/[^a-zA-Z0-9._-]/g, '');
   if (!username || username.length < 3 || username.length > 20) {
     alert('Username must be 3-20 characters: letters, numbers, ., _, -');
@@ -68,23 +98,19 @@ registerBtn.onclick = async () => {
     alert('Password must be at least 6 characters.');
     return;
   }
-  // Check if username exists in Realtime Database
   const snap = await db.ref('usernames/' + username).once('value');
   if (snap.exists()) {
     alert('Username already taken.');
     return;
   }
-  // Register with fake email
   auth.createUserWithEmailAndPassword(`${username}@realmofidlewardens.com`, password)
     .then(cred => {
-      // Save username mapping and profile in Realtime Database
       db.ref('usernames/' + username).set(cred.user.uid);
       db.ref('users/' + cred.user.uid + '/profile').set({ username });
     })
     .catch(e => alert(e.message));
 };
 
-// Login with username
 loginBtn.onclick = async () => {
   let username = usernameInput.value.trim();
   const password = passwordInput.value;
@@ -97,20 +123,17 @@ loginBtn.onclick = async () => {
     alert('Password must be at least 6 characters.');
     return;
   }
-  // Lookup UID by username
   const snap = await db.ref('usernames/' + username).once('value');
   if (!snap.exists()) {
     alert('Username not found.');
     return;
   }
-  // Login with fake email
   auth.signInWithEmailAndPassword(usernameToEmail(username), password)
     .catch(e => alert(e.message));
 };
 
 logoutBtn && (logoutBtn.onclick = () => auth.signOut());
 
-// Change username
 changeUsernameBtn && (changeUsernameBtn.onclick = async () => {
   const user = auth.currentUser;
   let newUsername = newUsernameInput.value.trim();
@@ -119,19 +142,13 @@ changeUsernameBtn && (changeUsernameBtn.onclick = async () => {
     alert('Username must be 3-20 characters: letters, numbers, ., _, -');
     return;
   }
-
-  // Check if new username is taken
   const snap = await db.ref('usernames/' + newUsername).once('value');
   if (snap.exists()) {
     alert('Username already taken.');
     return;
   }
-
-  // Get old username
   const profileSnap = await db.ref('users/' + user.uid + '/profile').once('value');
   const oldUsername = profileSnap.val()?.username;
-
-  // Update username mapping
   await db.ref('usernames/' + newUsername).set(user.uid);
   if (oldUsername) {
     await db.ref('usernames/' + oldUsername).remove();
@@ -140,7 +157,6 @@ changeUsernameBtn && (changeUsernameBtn.onclick = async () => {
   alert('Username updated!');
 });
 
-// Change password
 changePasswordBtn && (changePasswordBtn.onclick = () => {
   const user = auth.currentUser;
   if (user && newPasswordInput.value.length >= 6) {
@@ -152,11 +168,9 @@ changePasswordBtn && (changePasswordBtn.onclick = () => {
   }
 });
 
-// Delete account
 deleteAccountBtn && (deleteAccountBtn.onclick = async () => {
   const user = auth.currentUser;
   if (user && confirm('Are you sure you want to delete your account?')) {
-    // Remove username mapping
     const profileSnap = await db.ref('users/' + user.uid + '/profile').once('value');
     const username = profileSnap.val()?.username;
     if (username) {
@@ -166,6 +180,89 @@ deleteAccountBtn && (deleteAccountBtn.onclick = async () => {
     user.delete().catch(e => alert(e.message));
   }
 });
+
+// --- Animation Logic ---
+function playHeroAnimation(anim, force = false) {
+  if (force || heroAnim !== anim) {
+    heroAnim = anim;
+    heroAnimFrame = 0;
+    heroAnimTimer = 0;
+    heroAnimPlaying = true;
+  }
+}
+
+function queueHeroAnimation(anim) {
+  heroAnimQueue.push(anim);
+}
+
+function updateHeroAnimation(dt) {
+  // Death animation
+  if (heroAnim === 'death' && heroAnimPlaying) {
+    heroAnimTimer += dt;
+    const animData = heroSprites[heroAnim];
+    const frameDuration = 0.15;
+    if (heroAnimTimer >= frameDuration) {
+      heroAnimFrame++;
+      heroAnimTimer = 0;
+      if (heroAnimFrame >= animData.frames) {
+        heroAnimFrame = animData.frames - 1;
+        heroAnimPlaying = false;
+      }
+    }
+    return;
+  }
+
+  // Hurt animation
+  if (heroAnim === 'hurt' && heroAnimPlaying) {
+    heroAnimTimer += dt;
+    const animData = heroSprites[heroAnim];
+    const frameDuration = 0.12;
+    if (heroAnimTimer >= frameDuration) {
+      heroAnimFrame++;
+      heroAnimTimer = 0;
+      if (heroAnimFrame >= animData.frames) {
+        heroAnimPlaying = false;
+        playHeroAnimation('idle');
+      }
+    }
+    return;
+  }
+
+  // Attack animations
+  if ((heroAnim === 'attack1' || heroAnim === 'attack2' || heroAnim === 'attack3') && heroAnimPlaying) {
+    heroAnimTimer += dt;
+    const animData = heroSprites[heroAnim];
+    const frameDuration = 0.10;
+    if (heroAnimTimer >= frameDuration) {
+      heroAnimFrame++;
+      heroAnimTimer = 0;
+      if (heroAnimFrame >= animData.frames) {
+        heroAnimPlaying = false;
+        playHeroAnimation('idle');
+      }
+    }
+    return;
+  }
+
+  // If queued animation, play it
+  if (heroAnimQueue.length > 0) {
+    playHeroAnimation(heroAnimQueue.shift());
+    return;
+  }
+
+  // Default: idle or walk
+  let moving = false;
+  // If you have movement logic, set moving = true if hero is moving
+  // For now, always idle
+  playHeroAnimation('idle');
+  const animData = heroSprites[heroAnim];
+  const frameDuration = 0.15;
+  heroAnimTimer += dt;
+  if (heroAnimTimer >= frameDuration) {
+    heroAnimFrame = (heroAnimFrame + 1) % animData.frames;
+    heroAnimTimer = 0;
+  }
+}
 
 // --- Game Loop ---
 function startGame() {
@@ -192,56 +289,94 @@ function gameLoop(now) {
 
   updateGame(dt);
   updateUI();
-  draw();
+  updateHeroAnimation(dt);
+  draw(now);
 
-  // If hero dies, reset HP and respawn wave (no game over)
   if (gameState.hero.hp <= 0) {
-    gameState.hero.hp = gameState.hero.maxHp;
-    gameState.enemies = [];
-    spawnWave(gameState.wave);
-    // Optionally show a message or animation here
+    playHeroAnimation('death', true);
+    setTimeout(() => {
+      gameState.hero.hp = gameState.hero.maxHp;
+      gameState.enemies = [];
+      spawnWave(gameState.wave);
+      playHeroAnimation('idle');
+    }, 1000);
   }
 
   requestAnimationFrame(gameLoop);
 }
 
 // --- Drawing ---
-function draw() {
+function draw(now) {
   ctx.clearRect(0, 0, 400, 400);
 
-  // Draw hero
-  ctx.fillStyle = "#4af";
-  ctx.beginPath();
-  ctx.arc(gameState.hero.x, gameState.hero.y, 20, 0, Math.PI * 2);
-  ctx.fill();
+  // Draw hero (animated)
+  const animData = heroSprites[heroAnim];
+  if (animData) {
+    drawSprite(
+      animData.img,
+      gameState.hero.x - 50,
+      gameState.hero.y - 50,
+      animData.frameWidth,
+      animData.frameHeight,
+      heroAnimFrame,
+      animData.frameWidth
+    );
+  }
 
   // Draw hero HP bar
   drawHpBar(
-    gameState.hero.x - 25,
-    gameState.hero.y - 32,
-    50,
-    6,
+    gameState.hero.x - 40,
+    gameState.hero.y - 60,
+    80,
+    8,
     gameState.hero.hp,
     gameState.hero.maxHp
   );
 
-  // Draw enemies
-  ctx.fillStyle = "#a44";
+  // Draw enemies (animated)
   for (const enemy of gameState.enemies) {
-    ctx.beginPath();
-    ctx.arc(enemy.x, enemy.y, 15, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Draw enemy HP bar
+    const enemyAnim = enemySprites.walk;
+    const enemyFrame = Math.floor((now / 100) % enemyAnim.frames);
+    drawSprite(
+      enemyAnim.img,
+      enemy.x - 50,
+      enemy.y - 50,
+      enemyAnim.frameWidth,
+      enemyAnim.frameHeight,
+      enemyFrame,
+      enemyAnim.frameWidth
+    );
     drawHpBar(
-      enemy.x - 18,
-      enemy.y - 25,
-      36,
-      5,
+      enemy.x - 36,
+      enemy.y - 60,
+      72,
+      7,
       enemy.hp,
-      20 + gameState.wave * 5 // If you add enemy.maxHp, use that instead
+      enemy.maxHp || 20 + gameState.wave * 5
     );
   }
+
+  // Draw projectiles (arrows)
+  for (const arrow of gameState.arrows || []) {
+    drawSprite(
+      arrowSprite,
+      arrow.x - 50,
+      arrow.y - 50,
+      100,
+      100,
+      0,
+      100
+    );
+  }
+}
+
+// Draw a sprite frame from a spritesheet
+function drawSprite(img, x, y, w, h, frame, frameWidth) {
+  ctx.drawImage(
+    img,
+    frame * frameWidth, 0, frameWidth, h,
+    x, y, w, h
+  );
 }
 
 // Draw HP bar helper

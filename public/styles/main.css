@@ -1,14 +1,12 @@
 body {
-    background: #2d1b0e url('../assets/parchment-bg.png') repeat;
-    background-size: cover;
     color: #3a2c1a;
     margin: 0;
     padding: 0;
 }
 
-body,
-#hud span,
-#controls button,
+body, #hud span, #controls button {
+    font-family: 'EB Garamond', 'Georgia', serif;
+}
 h1 {
     font-family: 'MedievalSharp', 'Georgia', serif;
 }
@@ -39,7 +37,6 @@ h1 {
 }
 
 #game-canvas {
-  background: #222 url('../assets/arena-medieval.png') center/cover;
   display: block;
   margin: 0 auto 16px auto;
   border: 3px solid #bfa76f;
@@ -48,10 +45,10 @@ h1 {
 
 #controls button {
     margin-right: 8px;
-    background: #bfa76f;
+    background-size: contain;
     color: #232323;
     border: none;
-    padding: 10px 20px;
+    padding: 12px 32px;
     border-radius: 8px;
     font-weight: bold;
     cursor: pointer;
