@@ -17,35 +17,53 @@
 </head>
 
 <body>
-    <div id="auth-section">
-        <div id="auth-forms">
-            <input id="username" type="text" placeholder="Username" />
-            <input id="password" type="password" placeholder="Password" />
-            <button id="login-btn">Login</button>
-            <button id="register-btn">Register</button>
+    <div id="main-div" style="display: flex; justify-content: center;">
+        <div id="leaderboard-panel" style="width:220px; margin-right:24px;">
+            <h2 style="font-size:1.3em; text-align:center; margin-bottom:8px;">Leaderboard</h2>
+            <ul id="leaderboard"
+                style="list-style:none; padding:0; margin:0; background:#f5e6c8; border-radius:10px; border:2px solid #bfa76f; min-height:300px;">
+            </ul>
         </div>
-        <div id="profile-section" style="display:none;">
-            <span id="user-email"></span>
-            <input id="new-username" placeholder="New Username" />
-            <button id="change-username-btn">Change Username</button>
-            <input id="new-password" type="password" placeholder="New Password" />
-            <button id="change-password-btn">Change Password</button>
-            <button id="delete-account-btn">Delete Account</button>
-            <button id="logout-btn">Logout</button>
+        <div id="arena-div" style="flex:1;">
+            <div id="auth-section">
+                <div id="auth-forms">
+                    <input id="username" type="text" placeholder="Username" />
+                    <input id="password" type="password" placeholder="Password" />
+                    <button id="login-btn">Login</button>
+                    <button id="register-btn">Register</button>
+                </div>
+                <div id="profile-section" style="display:none;">
+                    <span id="user-email"></span>
+                    <input id="new-username" placeholder="New Username" />
+                    <button id="change-username-btn">Change Username</button>
+                    <input id="new-password" type="password" placeholder="New Password" />
+                    <button id="change-password-btn">Change Password</button>
+                    <button id="delete-account-btn">Delete Account</button>
+                    <button id="logout-btn">Logout</button>
+                </div>
+            </div>
+            <div id="game-root">
+                <h1>Realm of Idle Wardens</h1>
+                <div id="hud">
+                    <span id="gold">Gold: 0</span>
+                    <span id="wave">Wave: 1</span>
+                </div>
+                <canvas id="game-canvas" width="400" height="400"></canvas>
+                <div id="controls">
+                    <button id="upgrade-damage">Upgrade Damage (100g)</button>
+                    <button id="upgrade-hp">Upgrade HP (100g)</button>
+                    <button id="upgrade-attack-speed">Upgrade Attack Speed (100g)</button>
+                </div>
+            </div>
         </div>
-    </div>
-    <div id="game-root">
-        <h1>Realm of Idle Wardens</h1>
-        <div id="hud">
-            <span id="gold">Gold: 0</span>
-            <span id="wave">Wave: 1</span>
-            <span id="hero-hp">HP: 100/100</span>
-            <span id="hero-damage">DMG: 10</span>
-        </div>
-        <canvas id="game-canvas" width="400" height="400"></canvas>
-        <div id="controls">
-            <button id="upgrade-attack">Upgrade Attack (100g)</button>
-            <button id="upgrade-hp">Upgrade HP (100g)</button>
+        <div id="stats-panel" style="width:220px; margin-left:24px;">
+            <h2 style="font-size:1.3em; text-align:center; margin-bottom:8px;">Stats</h2>
+            <ul id="stats-list"
+                style="list-style:none; padding:0; margin:0; background:#f5e6c8; border-radius:10px; border:2px solid #bfa76f; min-height:120px;">
+                <li style="padding:8px 12px;"><b>HP:</b> <span id="stats-hp">100/100</span></li>
+                <li style="padding:8px 12px;"><b>Damage:</b> <span id="stats-damage">10</span></li>
+                <li style="padding:8px 12px;"><b>Attack Speed:</b> <span id="stats-attack-speed">1.00</span></li>
+            </ul>
         </div>
     </div>
     <script src="../src/app.js" type="module"></script>

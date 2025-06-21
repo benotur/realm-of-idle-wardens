@@ -88,12 +88,80 @@ function saveProgress() {
       wave: gameState.wave,
       hp: gameState.hero.hp,
       maxHp: gameState.hero.maxHp,
-      damage: gameState.hero.attack
+      damage: gameState.hero.attack,
+      attackSpeed: gameState.hero.attackSpeed
     });
+    loadLeaderboard();
   }
 }
 window.saveProgress = saveProgress;
 
+// --- Leaderboard ---
+let leaderboardLastUpdate = 0;
+let leaderboardInterval = null;
+let leaderboardCountdown = 30;
+
+function loadLeaderboard(force = false) {
+  const leaderboardEl = document.getElementById('leaderboard');
+  const counterElId = 'leaderboard-refresh-counter';
+  if (!leaderboardEl) return;
+
+  // Only fetch if forced or 30s passed since last update
+  const now = Date.now();
+  if (!force && now - leaderboardLastUpdate < 30000) return;
+
+  leaderboardLastUpdate = now;
+  leaderboardEl.innerHTML = '<li style="text-align:center;color:#888;">Loading...</li>';
+
+  db.ref('users').once('value').then(snap => {
+    const users = snap.val() || {};
+    const entries = [];
+    for (const uid in users) {
+      const profile = users[uid].profile || {};
+      const progress = users[uid].progress || {};
+      entries.push({
+        username: profile.username || 'Unknown',
+        wave: progress.wave || 1
+      });
+    }
+    entries.sort((a, b) => b.wave - a.wave);
+    leaderboardEl.innerHTML = entries.slice(0, 10).map((entry, i) =>
+      `<li style="padding:6px 12px;${i===0?'font-weight:bold;color:#bfa76f;':''}">
+        ${i+1}. ${entry.username} <span style="float:right;">Wave ${entry.wave}</span>
+      </li>`
+    ).join('');
+    if (entries.length === 0) leaderboardEl.innerHTML = '<li style="text-align:center;color:#888;">No data yet.</li>';
+    // Add/update refresh counter
+    let counterEl = document.getElementById(counterElId);
+    if (!counterEl) {
+      counterEl = document.createElement('div');
+      counterEl.id = counterElId;
+      counterEl.style = "text-align:center;color:#888;font-size:0.95em;margin-top:8px;";
+      leaderboardEl.parentElement.appendChild(counterEl);
+    }
+    counterEl.textContent = `Leaderboard refreshes in ${leaderboardCountdown}s`;
+  });
+}
+window.loadLeaderboard = loadLeaderboard;
+
+// Start leaderboard auto-refresh
+function startLeaderboardInterval() {
+  if (leaderboardInterval) clearInterval(leaderboardInterval);
+  leaderboardCountdown = 30;
+  loadLeaderboard(true);
+  leaderboardInterval = setInterval(() => {
+    leaderboardCountdown--;
+    let counterEl = document.getElementById('leaderboard-refresh-counter');
+    if (counterEl) {
+      counterEl.textContent = `Leaderboard refreshes in ${leaderboardCountdown}s`;
+    }
+    if (leaderboardCountdown <= 0) {
+      leaderboardCountdown = 30;
+      loadLeaderboard(true);
+    }
+  }, 1000);
+}
+startLeaderboardInterval();
 
 // --- Auth State Listener ---
 auth.onAuthStateChanged(user => {
@@ -115,13 +183,16 @@ auth.onAuthStateChanged(user => {
         gameState.hero.hp = progress.hp || 100;
         gameState.hero.maxHp = progress.maxHp || 100;
         gameState.hero.attack = progress.damage || 10;
+        gameState.hero.attackSpeed = progress.attackSpeed || 1;
       }
       startGame();
+      loadLeaderboard();
     });
   } else {
     authForms.style.display = '';
     profileSection.style.display = 'none';
     stopGame();
+    loadLeaderboard();
   }
 });
 
@@ -237,8 +308,45 @@ function queueHeroAnimation(anim) {
 }
 window.queueHeroAnimation = queueHeroAnimation;
 
+// --- Sprite Flipping Helpers ---
+function drawSpriteFlipped(img, x, y, w, h, frame, frameWidth) {
+  ctx.save();
+  ctx.translate(x + w / 2, y + h / 2);
+  ctx.scale(-1, 1);
+  ctx.drawImage(
+    img,
+    frame * frameWidth, 0, frameWidth, h,
+    -w / 2, -h / 2, w, h
+  );
+  ctx.restore();
+}
+
+function getHeroFlip() {
+  // Find closest enemy
+  let targetX = null;
+  let minDist = Infinity;
+  for (const enemy of gameState.enemies) {
+    const d = Math.abs(enemy.x - gameState.hero.x);
+    if (d < minDist) {
+      minDist = d;
+      targetX = enemy.x;
+    }
+  }
+  if (targetX === null) return false;
+  return targetX < gameState.hero.x;
+}
+function getEnemyFlip(enemy) {
+  return gameState.hero.x < enemy.x;
+}
+function getArrowFlip(arrow) {
+  return arrow.vx < 0;
+}
+
 // --- Animation Update ---
 function updateHeroAnimation(dt) {
+  // Animation speed multiplier for attack only
+  const attackAnimSpeed = Math.max(0.5, gameState.hero.attackSpeed);
+
   // Death animation
   if (heroAnim === 'death' && heroAnimPlaying) {
     heroAnimTimer += dt;
@@ -271,11 +379,11 @@ function updateHeroAnimation(dt) {
     return;
   }
 
-  // Attack animations
+  // Attack animations (speed up only these)
   if ((heroAnim === 'attack1' || heroAnim === 'attack2' || heroAnim === 'attack3') && heroAnimPlaying) {
-    heroAnimTimer += dt;
+    heroAnimTimer += dt * attackAnimSpeed;
     const animData = heroSprites[heroAnim];
-    const frameDuration = 0.10;
+    const frameDuration = 0.10 / attackAnimSpeed;
     if (heroAnimTimer >= frameDuration) {
       heroAnimFrame++;
       heroAnimTimer = 0;
@@ -293,7 +401,7 @@ function updateHeroAnimation(dt) {
     return;
   }
 
-  // Default: idle or walk
+  // Default: idle or walk (do NOT speed up)
   let moving = false;
   playHeroAnimation('idle');
   const animData = heroSprites[heroAnim];
@@ -353,16 +461,29 @@ function draw(now) {
   // Draw hero (centered, bigger)
   const heroDrawSize = 180;
   const animData = heroSprites[heroAnim];
+  const heroFlip = getHeroFlip();
   if (animData) {
-    drawSprite(
-      animData.img,
-      gameState.hero.x - heroDrawSize / 2,
-      gameState.hero.y - heroDrawSize / 2,
-      heroDrawSize,
-      heroDrawSize,
-      heroAnimFrame,
-      animData.frameWidth
-    );
+    if (heroFlip) {
+      drawSpriteFlipped(
+        animData.img,
+        gameState.hero.x - heroDrawSize / 2,
+        gameState.hero.y - heroDrawSize / 2,
+        heroDrawSize,
+        heroDrawSize,
+        heroAnimFrame,
+        animData.frameWidth
+      );
+    } else {
+      drawSprite(
+        animData.img,
+        gameState.hero.x - heroDrawSize / 2,
+        gameState.hero.y - heroDrawSize / 2,
+        heroDrawSize,
+        heroDrawSize,
+        heroAnimFrame,
+        animData.frameWidth
+      );
+    }
   }
 
   // Draw hero HP bar
@@ -387,15 +508,28 @@ function draw(now) {
       enemyAnim = enemySprites.attack;
       enemyFrame = enemy.animFrame || 0;
     }
-    drawSprite(
-      enemyAnim.img,
-      enemy.x - orcDrawSize / 2,
-      enemy.y - orcDrawSize / 2,
-      orcDrawSize,
-      orcDrawSize,
-      enemyFrame,
-      enemyAnim.frameWidth
-    );
+    const enemyFlip = getEnemyFlip(enemy);
+    if (enemyFlip) {
+      drawSpriteFlipped(
+        enemyAnim.img,
+        enemy.x - orcDrawSize / 2,
+        enemy.y - orcDrawSize / 2,
+        orcDrawSize,
+        orcDrawSize,
+        enemyFrame,
+        enemyAnim.frameWidth
+      );
+    } else {
+      drawSprite(
+        enemyAnim.img,
+        enemy.x - orcDrawSize / 2,
+        enemy.y - orcDrawSize / 2,
+        orcDrawSize,
+        orcDrawSize,
+        enemyFrame,
+        enemyAnim.frameWidth
+      );
+    }
     drawHpBar(
       enemy.x - 36,
       enemy.y - 30,
@@ -408,15 +542,28 @@ function draw(now) {
 
   // Draw projectiles (arrows, bigger)
   for (const arrow of gameState.arrows || []) {
-    drawSprite(
-      arrowSprite,
-      arrow.x - 30,
-      arrow.y - 30,
-      60,
-      60,
-      0,
-      100
-    );
+    const arrowFlip = getArrowFlip(arrow);
+    if (arrowFlip) {
+      drawSpriteFlipped(
+        arrowSprite,
+        arrow.x - 30,
+        arrow.y - 80,
+        60,
+        60,
+        0,
+        100
+      );
+    } else {
+      drawSprite(
+        arrowSprite,
+        arrow.x - 30,
+        arrow.y - 80,
+        60,
+        60,
+        0,
+        100
+      );
+    }
   }
 
   // Draw floating gold
@@ -479,7 +626,7 @@ function drawHpBar(x, y, width, height, hp, maxHp) {
 }
 
 // --- Upgrade Buttons ---
-document.getElementById('upgrade-attack') && (document.getElementById('upgrade-attack').onclick = () => {
+document.getElementById('upgrade-damage') && (document.getElementById('upgrade-damage').onclick = () => {
   if (gameState.gold >= 100) {
     gameState.gold -= 100;
     gameState.hero.attack += 5;
@@ -492,6 +639,14 @@ document.getElementById('upgrade-hp') && (document.getElementById('upgrade-hp').
     gameState.gold -= 100;
     gameState.hero.maxHp += 20;
     gameState.hero.hp = gameState.hero.maxHp;
+    updateUI();
+    saveProgress();
+  }
+});
+document.getElementById('upgrade-attack-speed') && (document.getElementById('upgrade-attack-speed').onclick = () => {
+  if (gameState.gold >= 100) {
+    gameState.gold -= 100;
+    gameState.hero.attackSpeed += 0.1;
     updateUI();
     saveProgress();
   }

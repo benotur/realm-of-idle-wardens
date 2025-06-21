@@ -94,7 +94,7 @@ export function updateGame(dt) {
 
   gameState.enemies = gameState.enemies.filter(e => e.hp > 0);
 
-  gameState.hero.attackCooldown -= dt;
+    gameState.hero.attackCooldown -= dt;
   if (gameState.hero.attackCooldown <= 0) {
     let minDist = Infinity;
     let target = null;
@@ -106,7 +106,7 @@ export function updateGame(dt) {
       }
     }
     if (target) {
-      if (minDist > 120 && minDist < 300) {
+      if (minDist > 60 && minDist < 300) {
         if (window.queueHeroAnimation) window.queueHeroAnimation('attack3');
         gameState.arrows.push({
           x: gameState.hero.x,
@@ -119,7 +119,8 @@ export function updateGame(dt) {
           hit: false,
         });
         gameState.hero.attackCooldown = 1 / gameState.hero.attackSpeed;
-      } else if (minDist <= 120) {
+      } else if (minDist <= 60) {
+        // Melee attack (sword)
         target.hp -= gameState.hero.attack;
         if (window.showFloatingDamage) window.showFloatingDamage(target.x, target.y, "-" + gameState.hero.attack);
         if (target.hp <= 0) {
