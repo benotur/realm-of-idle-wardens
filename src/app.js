@@ -264,6 +264,31 @@ function updateHeroAnimation(dt) {
   }
 }
 
+let floatingGolds = [];
+function showFloatingGold(x, y, amount) {
+  floatingGolds.push({ x, y, amount, alpha: 1, vy: -0.5 });
+}
+
+// Call this when gold is gained, e.g. in engine.js after killing an enemy:
+showFloatingGold(enemy.x, enemy.y, "+10");
+
+// In your draw() function, after drawing everything else:
+for (let i = floatingGolds.length - 1; i >= 0; i--) {
+  const fg = floatingGolds[i];
+  ctx.save();
+  ctx.globalAlpha = fg.alpha;
+  ctx.font = "bold 22px EB Garamond, serif";
+  ctx.fillStyle = "#ffd700";
+  ctx.strokeStyle = "#000";
+  ctx.lineWidth = 2;
+  ctx.strokeText(fg.amount, fg.x, fg.y);
+  ctx.fillText(fg.amount, fg.x, fg.y);
+  ctx.restore();
+  fg.y += fg.vy;
+  fg.alpha -= 0.02;
+  if (fg.alpha <= 0) floatingGolds.splice(i, 1);
+}
+
 // --- Game Loop ---
 function startGame() {
   if (!gameRunning) {

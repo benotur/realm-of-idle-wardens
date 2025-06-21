@@ -41,6 +41,16 @@ h1 {
   margin: 0 auto 16px auto;
   border: 3px solid #bfa76f;
   border-radius: 12px;
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+}
+
+#controls {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 12px;
 }
 
 #controls button {
