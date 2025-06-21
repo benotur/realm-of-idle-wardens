@@ -1,6 +1,5 @@
 import { gameState } from './state.js';
 
-// --- Helper for distance ---
 function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
@@ -27,14 +26,12 @@ export function spawnEnemy() {
   });
 }
 
-// Start a new wave: set up how many enemies to spawn and reset counters
 export function spawnWave(wave) {
   gameState.waveEnemiesToSpawn = 5 + wave;
   gameState.waveEnemiesSpawned = 0;
   gameState.enemySpawnTimer = 0;
 }
 
-// Call this every frame in updateGame to handle enemy spawning
 function handleWaveSpawning(dt) {
   if (
     typeof gameState.waveEnemiesToSpawn === 'number' &&
@@ -44,7 +41,7 @@ function handleWaveSpawning(dt) {
     if (gameState.enemySpawnTimer <= 0) {
       spawnEnemy();
       gameState.waveEnemiesSpawned++;
-      gameState.enemySpawnTimer = 0.7; // seconds between spawns, adjust as needed
+      gameState.enemySpawnTimer = 0.7;
     }
   }
 }
@@ -52,23 +49,19 @@ function handleWaveSpawning(dt) {
 export function updateGame(dt) {
   handleWaveSpawning(dt);
 
-  // Move enemies and handle enemy attack animation
   for (const enemy of gameState.enemies) {
     const dx = gameState.hero.x - enemy.x;
     const dy = gameState.hero.y - enemy.y;
     const dist = Math.hypot(dx, dy);
 
-    // Enemy attack logic
     enemy.attackCooldown = Math.max(0, enemy.attackCooldown - dt);
 
-    // --- Enemy Animation Update ---
     if (enemy.anim === 'attack' && enemy.animPlaying) {
       enemy.animTimer += dt;
-      const frameDuration = 0.10; // seconds per frame
+      const frameDuration = 0.10;
       if (enemy.animTimer >= frameDuration) {
         enemy.animFrame++;
         enemy.animTimer = 0;
-        // 6 is the number of attack frames for orc, adjust if needed
         if (enemy.animFrame >= 6) {
           enemy.animFrame = 0;
           enemy.animPlaying = false;
@@ -78,7 +71,6 @@ export function updateGame(dt) {
     }
 
     if (dist > 5) {
-      // Move enemy
       enemy.x += (dx / dist) * enemy.speed * dt;
       enemy.y += (dy / dist) * enemy.speed * dt;
       if (enemy.anim !== 'walk') {
@@ -88,25 +80,22 @@ export function updateGame(dt) {
         enemy.animPlaying = true;
       }
     } else {
-      // Enemy is close enough to attack
       if (enemy.attackCooldown <= 0) {
         enemy.anim = 'attack';
         enemy.animFrame = 0;
         enemy.animTimer = 0;
         enemy.animPlaying = true;
-        enemy.attackCooldown = 1; // 1 second between attacks
+        enemy.attackCooldown = 1;
         gameState.hero.hp -= enemy.attack;
+        if (window.saveProgress) window.saveProgress();
       }
     }
   }
 
-  // Remove dead enemies
   gameState.enemies = gameState.enemies.filter(e => e.hp > 0);
 
-  // Hero attacks nearest enemy
   gameState.hero.attackCooldown -= dt;
   if (gameState.hero.attackCooldown <= 0) {
-    // Find closest enemy
     let minDist = Infinity;
     let target = null;
     for (const enemy of gameState.enemies) {
@@ -118,9 +107,7 @@ export function updateGame(dt) {
     }
     if (target) {
       if (minDist > 120 && minDist < 300) {
-        // Ranged attack (bow)
         if (window.queueHeroAnimation) window.queueHeroAnimation('attack3');
-        // Spawn arrow projectile
         gameState.arrows.push({
           x: gameState.hero.x,
           y: gameState.hero.y,
@@ -133,38 +120,39 @@ export function updateGame(dt) {
         });
         gameState.hero.attackCooldown = 1 / gameState.hero.attackSpeed;
       } else if (minDist <= 120) {
-        // Melee attack (sword)
         target.hp -= gameState.hero.attack;
+        if (window.showFloatingDamage) window.showFloatingDamage(target.x, target.y, "-" + gameState.hero.attack);
         if (target.hp <= 0) {
           gameState.gold += 10;
           if (window.showFloatingGold) window.showFloatingGold(target.x, target.y, "+10");
+          if (window.saveProgress) window.saveProgress();
         }
         if (window.queueHeroAnimation) {
-          const attackAnim = 'attack' + (Math.floor(Math.random() * 2) + 1); // attack1 or attack2
+          const attackAnim = 'attack' + (Math.floor(Math.random() * 2) + 1);
           window.queueHeroAnimation(attackAnim);
         }
         gameState.hero.attackCooldown = 1 / gameState.hero.attackSpeed;
       }
+      if (window.saveProgress) window.saveProgress();
     }
   }
 
-  // Arrow projectile logic
   for (const arrow of gameState.arrows) {
     if (arrow.hit) continue;
     arrow.x += arrow.vx * dt;
     arrow.y += arrow.vy * dt;
-    // Check collision with enemies
     for (const enemy of gameState.enemies) {
       if (!arrow.hit && distance(arrow, enemy) < 30) {
         enemy.hp -= arrow.damage;
+        if (window.showFloatingDamage) window.showFloatingDamage(enemy.x, enemy.y, "-" + arrow.damage);
         arrow.hit = true;
         if (enemy.hp <= 0) {
           gameState.gold += 10;
           if (window.showFloatingGold) window.showFloatingGold(enemy.x, enemy.y, "+10");
+          if (window.saveProgress) window.saveProgress();
         }
       }
     }
-    // Remove arrow if out of bounds
     if (
       arrow.x < 0 || arrow.x > 400 ||
       arrow.y < 0 || arrow.y > 400
@@ -172,10 +160,8 @@ export function updateGame(dt) {
       arrow.hit = true;
     }
   }
-  // Remove hit arrows
   gameState.arrows = gameState.arrows.filter(a => !a.hit);
 
-  // If all enemies are dead and all have spawned, advance to next wave
   if (
     gameState.enemies.length === 0 &&
     typeof gameState.waveEnemiesToSpawn === 'number' &&
@@ -183,6 +169,7 @@ export function updateGame(dt) {
     gameState.hero.hp > 0
   ) {
     gameState.wave += 1;
+    if (window.saveProgress) window.saveProgress();
     spawnWave(gameState.wave);
   }
 }

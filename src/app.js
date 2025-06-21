@@ -85,10 +85,15 @@ function saveProgress() {
   if (user) {
     db.ref('users/' + user.uid + '/progress').set({
       gold: gameState.gold,
-      wave: gameState.wave
+      wave: gameState.wave,
+      hp: gameState.hero.hp,
+      maxHp: gameState.hero.maxHp,
+      damage: gameState.hero.attack
     });
   }
 }
+window.saveProgress = saveProgress;
+
 
 // --- Auth State Listener ---
 auth.onAuthStateChanged(user => {
@@ -102,12 +107,14 @@ auth.onAuthStateChanged(user => {
         newUsernameInput.value = profile.username;
       }
     });
-    // Load progress before starting game
     db.ref('users/' + user.uid + '/progress').once('value').then(snap => {
       const progress = snap.val();
       if (progress) {
         gameState.gold = progress.gold || 0;
         gameState.wave = progress.wave || 1;
+        gameState.hero.hp = progress.hp || 100;
+        gameState.hero.maxHp = progress.maxHp || 100;
+        gameState.hero.attack = progress.damage || 10;
       }
       startGame();
     });
