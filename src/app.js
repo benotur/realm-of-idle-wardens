@@ -25,7 +25,7 @@ const ctx = canvas.getContext('2d');
 let lastTime = performance.now();
 let gameRunning = false;
 
-// --- Sprite Assets (NEW: using your new structure, 100x100 tiles) ---
+// --- Sprite Assets ---
 const heroSprites = {
   idle: { img: new Image(), frames: 6, frameWidth: 100, frameHeight: 100 },
   walk: { img: new Image(), frames: 8, frameWidth: 100, frameHeight: 100 },
@@ -43,10 +43,9 @@ heroSprites.attack3.img.src = 'assets/characters/soldier/soldierwithshadows/Sold
 heroSprites.death.img.src = 'assets/characters/soldier/soldierwithshadows/Soldier-Death.png';
 heroSprites.hurt.img.src = 'assets/characters/soldier/soldierwithshadows/Soldier-Hurt.png';
 
-// Example enemy sprite (update path as needed)
 const enemySprites = {
   walk: { img: new Image(), frames: 8, frameWidth: 100, frameHeight: 100 },
-  attack: { img: new Image(), frames: 6, frameWidth: 100, frameHeight: 100 } // adjust frames if needed
+  attack: { img: new Image(), frames: 6, frameWidth: 100, frameHeight: 100 }
 };
 enemySprites.walk.img.src = 'assets/characters/orc/orcwithshadows/Orc-Walk.png';
 enemySprites.attack.img.src = 'assets/characters/orc/orcwithshadows/Orc-Attack01.png';
@@ -61,10 +60,34 @@ let heroAnimTimer = 0;
 let heroAnimPlaying = false;
 let heroAnimQueue = [];
 
+// --- Floating Gold & Damage Logic ---
+let floatingGolds = [];
+let floatingDamages = [];
+function showFloatingGold(x, y, amount) {
+  floatingGolds.push({ x, y, amount, alpha: 1, vy: -0.5 });
+}
+window.showFloatingGold = showFloatingGold;
+
+function showFloatingDamage(x, y, amount) {
+  floatingDamages.push({ x, y, amount, alpha: 1, vy: -0.7 });
+}
+window.showFloatingDamage = showFloatingDamage;
+
 // --- Helper: Username to Email ---
 function usernameToEmail(username) {
   const safe = username.replace(/[^a-zA-Z0-9._-]/g, '');
   return `${safe}@realmofidlewardens.com`;
+}
+
+// --- Progress Persistence ---
+function saveProgress() {
+  const user = auth.currentUser;
+  if (user) {
+    db.ref('users/' + user.uid + '/progress').set({
+      gold: gameState.gold,
+      wave: gameState.wave
+    });
+  }
 }
 
 // --- Auth State Listener ---
@@ -79,7 +102,15 @@ auth.onAuthStateChanged(user => {
         newUsernameInput.value = profile.username;
       }
     });
-    startGame();
+    // Load progress before starting game
+    db.ref('users/' + user.uid + '/progress').once('value').then(snap => {
+      const progress = snap.val();
+      if (progress) {
+        gameState.gold = progress.gold || 0;
+        gameState.wave = progress.wave || 1;
+      }
+      startGame();
+    });
   } else {
     authForms.style.display = '';
     profileSection.style.display = 'none';
@@ -199,13 +230,6 @@ function queueHeroAnimation(anim) {
 }
 window.queueHeroAnimation = queueHeroAnimation;
 
-// --- Floating Gold Logic ---
-let floatingGolds = [];
-function showFloatingGold(x, y, amount) {
-  floatingGolds.push({ x, y, amount, alpha: 1, vy: -0.5 });
-}
-window.showFloatingGold = showFloatingGold;
-
 // --- Animation Update ---
 function updateHeroAnimation(dt) {
   // Death animation
@@ -264,8 +288,6 @@ function updateHeroAnimation(dt) {
 
   // Default: idle or walk
   let moving = false;
-  // If you have movement logic, set moving = true if hero is moving
-  // For now, always idle
   playHeroAnimation('idle');
   const animData = heroSprites[heroAnim];
   const frameDuration = 0.15;
@@ -321,15 +343,16 @@ function gameLoop(now) {
 function draw(now) {
   ctx.clearRect(0, 0, 400, 400);
 
-  // Draw hero (animated)
+  // Draw hero (centered, bigger)
+  const heroDrawSize = 180;
   const animData = heroSprites[heroAnim];
   if (animData) {
     drawSprite(
       animData.img,
-      gameState.hero.x - 50,
-      gameState.hero.y - 50,
-      animData.frameWidth,
-      animData.frameHeight,
+      gameState.hero.x - heroDrawSize / 2,
+      gameState.hero.y - heroDrawSize / 2,
+      heroDrawSize,
+      heroDrawSize,
       heroAnimFrame,
       animData.frameWidth
     );
@@ -338,14 +361,15 @@ function draw(now) {
   // Draw hero HP bar
   drawHpBar(
     gameState.hero.x - 40,
-    gameState.hero.y - 60,
+    gameState.hero.y - 70,
     80,
-    8,
+    12,
     gameState.hero.hp,
     gameState.hero.maxHp
   );
 
-  // Draw enemies (animated)
+  // Draw enemies (smaller)
+  const orcDrawSize = 100;
   for (const enemy of gameState.enemies) {
     let enemyAnim = enemySprites.walk;
     let enemyFrame = 0;
@@ -358,31 +382,31 @@ function draw(now) {
     }
     drawSprite(
       enemyAnim.img,
-      enemy.x - 50,
-      enemy.y - 50,
-      enemyAnim.frameWidth,
-      enemyAnim.frameHeight,
+      enemy.x - orcDrawSize / 2,
+      enemy.y - orcDrawSize / 2,
+      orcDrawSize,
+      orcDrawSize,
       enemyFrame,
       enemyAnim.frameWidth
     );
     drawHpBar(
       enemy.x - 36,
-      enemy.y - 60,
+      enemy.y - 30,
       72,
-      7,
+      10,
       enemy.hp,
       enemy.maxHp || 20 + gameState.wave * 5
     );
   }
 
-  // Draw projectiles (arrows)
+  // Draw projectiles (arrows, bigger)
   for (const arrow of gameState.arrows || []) {
     drawSprite(
       arrowSprite,
-      arrow.x - 50,
-      arrow.y - 50,
-      100,
-      100,
+      arrow.x - 30,
+      arrow.y - 30,
+      60,
+      60,
       0,
       100
     );
@@ -404,6 +428,23 @@ function draw(now) {
     fg.alpha -= 0.02;
     if (fg.alpha <= 0) floatingGolds.splice(i, 1);
   }
+
+  // Draw floating damage numbers
+  for (let i = floatingDamages.length - 1; i >= 0; i--) {
+    const fd = floatingDamages[i];
+    ctx.save();
+    ctx.globalAlpha = fd.alpha;
+    ctx.font = "bold 20px Georgia";
+    ctx.fillStyle = "#ff4444";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 2;
+    ctx.strokeText(fd.amount, fd.x, fd.y);
+    ctx.fillText(fd.amount, fd.x, fd.y);
+    ctx.restore();
+    fd.y += fd.vy;
+    fd.alpha -= 0.025;
+    if (fd.alpha <= 0) floatingDamages.splice(i, 1);
+  }
 }
 
 // Draw a sprite frame from a spritesheet
@@ -415,7 +456,7 @@ function drawSprite(img, x, y, w, h, frame, frameWidth) {
   );
 }
 
-// Draw HP bar helper
+// Draw HP bar helper (with numbers)
 function drawHpBar(x, y, width, height, hp, maxHp) {
   ctx.fillStyle = "#222";
   ctx.fillRect(x, y, width, height);
@@ -423,6 +464,11 @@ function drawHpBar(x, y, width, height, hp, maxHp) {
   ctx.fillRect(x, y, (hp / maxHp) * width, height);
   ctx.strokeStyle = "#000";
   ctx.strokeRect(x, y, width, height);
+  ctx.font = "bold 12px Georgia";
+  ctx.fillStyle = "#fff";
+  ctx.textAlign = "center";
+  ctx.fillText(`${Math.max(0, Math.floor(hp))}/${Math.floor(maxHp)}`, x + width / 2, y + height - 2);
+  ctx.textAlign = "left";
 }
 
 // --- Upgrade Buttons ---
@@ -431,6 +477,7 @@ document.getElementById('upgrade-attack') && (document.getElementById('upgrade-a
     gameState.gold -= 100;
     gameState.hero.attack += 5;
     updateUI();
+    saveProgress();
   }
 });
 document.getElementById('upgrade-hp') && (document.getElementById('upgrade-hp').onclick = () => {
@@ -439,5 +486,6 @@ document.getElementById('upgrade-hp') && (document.getElementById('upgrade-hp').
     gameState.hero.maxHp += 20;
     gameState.hero.hp = gameState.hero.maxHp;
     updateUI();
+    saveProgress();
   }
 });

@@ -106,23 +106,74 @@ export function updateGame(dt) {
   // Hero attacks nearest enemy
   gameState.hero.attackCooldown -= dt;
   if (gameState.hero.attackCooldown <= 0) {
-    const target = gameState.enemies.find(e => distance(e, gameState.hero) < 40);
+    // Find closest enemy
+    let minDist = Infinity;
+    let target = null;
+    for (const enemy of gameState.enemies) {
+      const d = distance(enemy, gameState.hero);
+      if (d < minDist) {
+        minDist = d;
+        target = enemy;
+      }
+    }
     if (target) {
-      target.hp -= gameState.hero.attack;
-      if (target.hp <= 0) {
-        gameState.gold += 10;
-        if (window.showFloatingGold) {
-          window.showFloatingGold(target.x, target.y, "+10");
+      if (minDist > 120 && minDist < 300) {
+        // Ranged attack (bow)
+        if (window.queueHeroAnimation) window.queueHeroAnimation('attack3');
+        // Spawn arrow projectile
+        gameState.arrows.push({
+          x: gameState.hero.x,
+          y: gameState.hero.y,
+          targetX: target.x,
+          targetY: target.y,
+          vx: (target.x - gameState.hero.x) / minDist * 400,
+          vy: (target.y - gameState.hero.y) / minDist * 400,
+          damage: gameState.hero.attack,
+          hit: false,
+        });
+        gameState.hero.attackCooldown = 1 / gameState.hero.attackSpeed;
+      } else if (minDist <= 120) {
+        // Melee attack (sword)
+        target.hp -= gameState.hero.attack;
+        if (target.hp <= 0) {
+          gameState.gold += 10;
+          if (window.showFloatingGold) window.showFloatingGold(target.x, target.y, "+10");
         }
+        if (window.queueHeroAnimation) {
+          const attackAnim = 'attack' + (Math.floor(Math.random() * 2) + 1); // attack1 or attack2
+          window.queueHeroAnimation(attackAnim);
+        }
+        gameState.hero.attackCooldown = 1 / gameState.hero.attackSpeed;
       }
-      // --- Trigger hero attack animation ---
-      if (window.queueHeroAnimation) {
-        const attackAnim = 'attack' + (Math.floor(Math.random() * 3) + 1); // attack1, attack2, or attack3
-        window.queueHeroAnimation(attackAnim);
-      }
-      gameState.hero.attackCooldown = 1 / gameState.hero.attackSpeed;
     }
   }
+
+  // Arrow projectile logic
+  for (const arrow of gameState.arrows) {
+    if (arrow.hit) continue;
+    arrow.x += arrow.vx * dt;
+    arrow.y += arrow.vy * dt;
+    // Check collision with enemies
+    for (const enemy of gameState.enemies) {
+      if (!arrow.hit && distance(arrow, enemy) < 30) {
+        enemy.hp -= arrow.damage;
+        arrow.hit = true;
+        if (enemy.hp <= 0) {
+          gameState.gold += 10;
+          if (window.showFloatingGold) window.showFloatingGold(enemy.x, enemy.y, "+10");
+        }
+      }
+    }
+    // Remove arrow if out of bounds
+    if (
+      arrow.x < 0 || arrow.x > 400 ||
+      arrow.y < 0 || arrow.y > 400
+    ) {
+      arrow.hit = true;
+    }
+  }
+  // Remove hit arrows
+  gameState.arrows = gameState.arrows.filter(a => !a.hit);
 
   // If all enemies are dead and all have spawned, advance to next wave
   if (
