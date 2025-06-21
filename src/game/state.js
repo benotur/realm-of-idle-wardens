@@ -1,7 +1,7 @@
 export const gameState = {
   hero: {
     x: 200,
-    y: 250,
+    y: 200,
     hp: 100,
     maxHp: 100,
     attack: 10,

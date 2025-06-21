@@ -43,15 +43,40 @@ heroSprites.attack3.img.src = 'assets/characters/soldier/soldierwithshadows/Sold
 heroSprites.death.img.src = 'assets/characters/soldier/soldierwithshadows/Soldier-Death.png';
 heroSprites.hurt.img.src = 'assets/characters/soldier/soldierwithshadows/Soldier-Hurt.png';
 
-const enemySprites = {
-  walk: { img: new Image(), frames: 8, frameWidth: 100, frameHeight: 100 },
-  attack: { img: new Image(), frames: 6, frameWidth: 100, frameHeight: 100 }
-};
-enemySprites.walk.img.src = 'assets/characters/orc/orcwithshadows/Orc-Walk.png';
-enemySprites.attack.img.src = 'assets/characters/orc/orcwithshadows/Orc-Attack01.png';
-
 const arrowSprite = new Image();
 arrowSprite.src = 'assets/characters/soldier/Arrow(projectile)/Arrow01(100x100).png';
+
+const orcTypes = ['orc1', 'orc2', 'orc3'];
+const slimeTypes = ['slime1', 'slime2', 'slime3'];
+const mobTypes = [...orcTypes, ...slimeTypes];
+
+const orcSprites = {};
+for (const orcType of orcTypes) {
+  orcSprites[orcType] = {
+    walk: { img: new Image(), frames: 6, frameWidth: 64, frameHeight: 64, rows: 4 },
+    attack: { img: new Image(), frames: 8, frameWidth: 64, frameHeight: 64, rows: 4 },
+    death: { img: new Image(), frames: 8, frameWidth: 64, frameHeight: 64, rows: 4 },
+    hurt: { img: new Image(), frames: 6, frameWidth: 64, frameHeight: 64, rows: 4 }
+  };
+  orcSprites[orcType].walk.img.src = `assets/characters/${orcType}/Walk.png`;
+  orcSprites[orcType].attack.img.src = `assets/characters/${orcType}/Attack.png`;
+  orcSprites[orcType].death.img.src = `assets/characters/${orcType}/Death.png`;
+  orcSprites[orcType].hurt.img.src = `assets/characters/${orcType}/Hurt.png`;
+}
+
+const slimeSprites = {};
+for (const slimeType of slimeTypes) {
+  slimeSprites[slimeType] = {
+    walk: { img: new Image(), frames: 6, frameWidth: 64, frameHeight: 64, rows: 4 },
+    attack: { img: new Image(), frames: 8, frameWidth: 64, frameHeight: 64, rows: 4 },
+    death: { img: new Image(), frames: 8, frameWidth: 64, frameHeight: 64, rows: 4 },
+    hurt: { img: new Image(), frames: 6, frameWidth: 64, frameHeight: 64, rows: 4 }
+  };
+  slimeSprites[slimeType].walk.img.src = `assets/characters/${slimeType}/Walk.png`;
+  slimeSprites[slimeType].attack.img.src = `assets/characters/${slimeType}/Attack.png`;
+  slimeSprites[slimeType].death.img.src = `assets/characters/${slimeType}/Death.png`;
+  slimeSprites[slimeType].hurt.img.src = `assets/characters/${slimeType}/Hurt.png`;
+}
 
 // --- Animation State ---
 let heroAnim = 'idle';
@@ -186,6 +211,7 @@ function startLeaderboardInterval() {
 startLeaderboardInterval();
 
 // --- Auth State Listener ---
+let isDeletingAccount = false;
 auth.onAuthStateChanged(user => {
   if (isDeletingAccount) return;
   if (user) {
@@ -304,8 +330,6 @@ changePasswordBtn && (changePasswordBtn.onclick = () => {
 });
 
 // --- Delete Account ---
-let isDeletingAccount = false;
-
 deleteAccountBtn && (deleteAccountBtn.onclick = async () => {
   const user = auth.currentUser;
   if (!user) return;
@@ -617,7 +641,7 @@ function draw(now) {
       drawSpriteFlipped(
         animData.img,
         gameState.hero.x - heroDrawSize / 2,
-        gameState.hero.y - heroDrawSize / 2,
+        gameState.hero.y - heroDrawSize / 2 + 40,
         heroDrawSize,
         heroDrawSize,
         heroAnimFrame,
@@ -627,7 +651,7 @@ function draw(now) {
       drawSprite(
         animData.img,
         gameState.hero.x - heroDrawSize / 2,
-        gameState.hero.y - heroDrawSize / 2,
+        gameState.hero.y - heroDrawSize / 2 + 40,
         heroDrawSize,
         heroDrawSize,
         heroAnimFrame,
@@ -639,53 +663,152 @@ function draw(now) {
   // Draw hero HP bar
   drawHpBar(
     gameState.hero.x - 40,
-    gameState.hero.y - 70,
+    gameState.hero.y - 30,
     80,
     12,
     gameState.hero.hp,
     gameState.hero.maxHp
   );
 
-  // Draw enemies (smaller)
-  const orcDrawSize = 100;
+  // Draw enemies (orcs, slimes, boss)
   for (const enemy of gameState.enemies) {
-    let enemyAnim = enemySprites.walk;
-    let enemyFrame = 0;
-    if (enemy.anim === 'walk') {
-      enemyAnim = enemySprites.walk;
-      enemyFrame = Math.floor((now / 100) % enemyAnim.frames);
-    } else if (enemy.anim === 'attack') {
-      enemyAnim = enemySprites.attack;
-      enemyFrame = enemy.animFrame || 0;
-    }
-    const enemyFlip = getEnemyFlip(enemy);
-    if (enemyFlip) {
-      drawSpriteFlipped(
+    // Set mob size per type
+    let mobDrawSize =
+      enemy.type === 'orc2' ? 80 :
+        enemy.type === 'orc3' || enemy.type === 'boss' ? 120 :
+          enemy.type === 'slime2' ? 120 :
+            100; // default
+
+    let enemyAnim, enemyFrame, enemyRow;
+
+    // --- Boss drawing ---
+    if (enemy.type === 'boss') {
+      let animKey = enemy.anim;
+      if (!['walk', 'attack', 'death', 'hurt'].includes(animKey)) animKey = 'walk';
+      enemyAnim = orcSprites['orc3'][animKey];
+      enemyRow = typeof enemy.direction === 'number' ? enemy.direction : 0;
+      if (animKey === 'walk' || animKey === 'hurt') {
+        enemyFrame = Math.floor((now / 100) % enemyAnim.frames);
+      } else {
+        enemyFrame = enemy.animFrame || 0;
+      }
+      ctx.drawImage(
         enemyAnim.img,
-        enemy.x - orcDrawSize / 2,
-        enemy.y - orcDrawSize / 2,
-        orcDrawSize,
-        orcDrawSize,
-        enemyFrame,
-        enemyAnim.frameWidth
+        enemyFrame * enemyAnim.frameWidth,
+        enemyRow * enemyAnim.frameHeight,
+        enemyAnim.frameWidth,
+        enemyAnim.frameHeight,
+        enemy.x - mobDrawSize / 2,
+        enemy.y - mobDrawSize / 2,
+        mobDrawSize,
+        mobDrawSize
       );
-    } else {
-      drawSprite(
+      // Draw boss title
+      ctx.save();
+      ctx.font = "bold 22px Georgia";
+      ctx.fillStyle = "#ff4444";
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 3;
+      ctx.textAlign = "center";
+      ctx.strokeText(enemy.title || "Boss Orc", enemy.x, enemy.y - mobDrawSize / 2 - 12);
+      ctx.fillText(enemy.title || "Boss Orc", enemy.x, enemy.y - mobDrawSize / 2 - 12);
+      ctx.restore();
+
+      // Freeze overlay
+      if (freezeActive > 0) {
+        ctx.save();
+        ctx.globalAlpha = 0.45;
+        ctx.fillStyle = "#3399ff";
+        ctx.fillRect(enemy.x - mobDrawSize / 2, enemy.y - mobDrawSize / 2, mobDrawSize, mobDrawSize);
+        ctx.restore();
+      }
+      drawHpBar(
+        enemy.x - 36,
+        enemy.y - 30,
+        72,
+        10,
+        enemy.hp,
+        enemy.maxHp || 20 + gameState.wave * 5,
+        enemy.anim === 'death'
+      );
+      continue;
+    }
+
+    // --- Orcs ---
+    if (orcTypes.includes(enemy.type)) {
+      const orcType = enemy.type;
+      let animKey = enemy.anim;
+      if (!['walk', 'attack', 'death', 'hurt'].includes(animKey)) animKey = 'walk';
+      enemyAnim = orcSprites[orcType][animKey];
+      enemyRow = typeof enemy.direction === 'number' ? enemy.direction : 0;
+      if (animKey === 'walk' || animKey === 'hurt') {
+        enemyFrame = Math.floor((now / 100) % enemyAnim.frames);
+      } else {
+        enemyFrame = enemy.animFrame || 0;
+      }
+      ctx.drawImage(
         enemyAnim.img,
-        enemy.x - orcDrawSize / 2,
-        enemy.y - orcDrawSize / 2,
-        orcDrawSize,
-        orcDrawSize,
-        enemyFrame,
-        enemyAnim.frameWidth
+        enemyFrame * enemyAnim.frameWidth,
+        enemyRow * enemyAnim.frameHeight,
+        enemyAnim.frameWidth,
+        enemyAnim.frameHeight,
+        enemy.x - mobDrawSize / 2,
+        enemy.y - mobDrawSize / 2,
+        mobDrawSize,
+        mobDrawSize
       );
     }
+    // --- Slimes ---
+    else if (slimeTypes.includes(enemy.type)) {
+      const slimeType = enemy.type;
+      let animKey = enemy.anim;
+      if (!['walk', 'attack', 'death', 'hurt'].includes(animKey)) animKey = 'walk';
+      enemyAnim = slimeSprites[slimeType][animKey];
+      enemyRow = typeof enemy.direction === 'number' ? enemy.direction : 0;
+      if (animKey === 'walk' || animKey === 'hurt') {
+        enemyFrame = Math.floor((now / 100) % enemyAnim.frames);
+      } else {
+        enemyFrame = enemy.animFrame || 0;
+      }
+      ctx.drawImage(
+        enemyAnim.img,
+        enemyFrame * enemyAnim.frameWidth,
+        enemyRow * enemyAnim.frameHeight,
+        enemyAnim.frameWidth,
+        enemyAnim.frameHeight,
+        enemy.x - mobDrawSize / 2,
+        enemy.y - mobDrawSize / 2,
+        mobDrawSize,
+        mobDrawSize
+      );
+    }
+
+    // Draw enemy title if exists
+    if (enemy.title) {
+      ctx.save();
+      ctx.font = enemy.type === 'boss' ? "bold 22px Georgia" : "bold 15px Georgia";
+      ctx.fillStyle = enemy.type === 'boss' ? "#ff4444" : "#fff";
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 3;
+      ctx.textAlign = "center";
+      // Draw level above the title
+      if (enemy.level) {
+        ctx.font = enemy.type === 'boss' ? "bold 18px Georgia" : "bold 13px Georgia";
+        ctx.strokeText(`Lv. ${enemy.level}`, enemy.x, enemy.y - mobDrawSize / 2 - 17);
+        ctx.fillText(`Lv. ${enemy.level}`, enemy.x, enemy.y - mobDrawSize / 2 - 17);
+        ctx.font = enemy.type === 'boss' ? "bold 22px Georgia" : "bold 15px Georgia";
+      }
+      ctx.strokeText(enemy.title, enemy.x, enemy.y - mobDrawSize / 2 - -2);
+      ctx.fillText(enemy.title, enemy.x, enemy.y - mobDrawSize / 2 - -2);
+      ctx.restore();
+    }
+
     // Freeze blue overlay
     if (freezeActive > 0) {
       ctx.save();
       ctx.globalAlpha = 0.45;
       ctx.fillStyle = "#3399ff";
-      ctx.fillRect(enemy.x - orcDrawSize / 2, enemy.y - orcDrawSize / 2, orcDrawSize, orcDrawSize);
+      ctx.fillRect(enemy.x - mobDrawSize / 2, enemy.y - mobDrawSize / 2, mobDrawSize, mobDrawSize);
       ctx.restore();
     }
     drawHpBar(
@@ -694,7 +817,8 @@ function draw(now) {
       72,
       10,
       enemy.hp,
-      enemy.maxHp || 20 + gameState.wave * 5
+      enemy.maxHp || 20 + gameState.wave * 5,
+      enemy.anim === 'death'
     );
   }
 
@@ -806,11 +930,13 @@ function drawSprite(img, x, y, w, h, frame, frameWidth) {
 }
 
 // Draw HP bar helper (with numbers)
-function drawHpBar(x, y, width, height, hp, maxHp) {
+function drawHpBar(x, y, width, height, hp, maxHp, isDead = false) {
   ctx.fillStyle = "#222";
   ctx.fillRect(x, y, width, height);
-  ctx.fillStyle = "#4f4";
-  ctx.fillRect(x, y, (hp / maxHp) * width, height);
+  if (!isDead && hp > 0) {
+    ctx.fillStyle = "#4f4";
+    ctx.fillRect(x, y, (hp / maxHp) * width, height);
+  }
   ctx.strokeStyle = "#000";
   ctx.strokeRect(x, y, width, height);
   ctx.font = "bold 12px Georgia";
