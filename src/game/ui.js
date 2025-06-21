@@ -37,12 +37,14 @@ export function updateUI() {
       ? `💚 Heal (${Math.ceil(window.healCooldown)}s, 40g)`
       : `💚 Heal (40g)`;
   }
-  const freezeBtn = document.getElementById('skill-freeze');
-  if (freezeBtn && typeof window.freezeCooldown !== "undefined") {
-    freezeBtn.disabled = window.freezeCooldown > 0 || gameState.gold < 60;
-    freezeBtn.textContent = window.freezeCooldown > 0
-      ? `❄️ Freeze (${Math.ceil(window.freezeCooldown)}s, 60g)`
-      : `❄️ Freeze (60g)`;
+  const rootBtn = document.getElementById('skill-root');
+  if (rootBtn && typeof window.rootCooldown !== "undefined") {
+    rootBtn.disabled = window.rootCooldown > 0 || gameState.gold < 70;
+    rootBtn.textContent = window.rootActive > 0
+      ? `🌱 Roots (${Math.ceil(window.rootActive)}s)`
+      : (window.rootCooldown > 0
+        ? `🌱 Roots (${Math.ceil(window.rootCooldown)}s, 70g)`
+        : `🌱 Roots (70g)`);
   }
 
   // Upgrade prices (scaling)

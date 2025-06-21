@@ -46,6 +46,9 @@ heroSprites.hurt.img.src = 'assets/characters/soldier/soldierwithshadows/Soldier
 const arrowSprite = new Image();
 arrowSprite.src = 'assets/characters/soldier/Arrow(projectile)/Arrow01(100x100).png';
 
+const rootSprite = new Image();
+rootSprite.src = 'assets/magic/1.png';
+
 const orcTypes = ['orc1', 'orc2', 'orc3'];
 const slimeTypes = ['slime1', 'slime2', 'slime3'];
 const mobTypes = [...orcTypes, ...slimeTypes];
@@ -517,13 +520,14 @@ function stopGame() {
 let flameArrowsCooldown = 0;
 let flameArrowsActive = 0;
 let healCooldown = 0;
-let freezeCooldown = 0;
-let freezeActive = 0;
+let rootCooldown = 0;
+let rootActive = 0;
 
 window.flameArrowsCooldown = flameArrowsCooldown;
 window.flameArrowsActive = flameArrowsActive;
 window.healCooldown = healCooldown;
-window.freezeCooldown = freezeCooldown;
+window.rootCooldown = rootCooldown;
+window.rootActive = rootActive;
 
 function useFlameArrows() {
   if (flameArrowsCooldown > 0 || gameState.gold < 50) return;
@@ -546,12 +550,13 @@ function useHeal() {
   updateUI();
   saveProgress();
 }
-function useFreeze() {
-  if (freezeCooldown > 0 || gameState.gold < 60) return;
-  gameState.gold -= 60;
-  freezeCooldown = 15;
-  window.freezeCooldown = freezeCooldown;
-  freezeActive = 2; // 2 seconds stun
+function useRoot() {
+  if (rootCooldown > 0 || gameState.gold < 70) return;
+  gameState.gold -= 70;
+  rootCooldown = 18;
+  rootActive = 2.5; // 2.5 seconds root
+  window.rootCooldown = rootCooldown;
+  window.rootActive = rootActive;
   updateUI();
   saveProgress();
 }
@@ -559,7 +564,7 @@ function useFreeze() {
 // Attach to buttons
 document.getElementById('skill-flame-arrows').onclick = useFlameArrows;
 document.getElementById('skill-heal').onclick = useHeal;
-document.getElementById('skill-freeze').onclick = useFreeze;
+document.getElementById('skill-root').onclick = useRoot;
 
 function gameLoop(now) {
   if (!gameRunning) return;
@@ -570,21 +575,28 @@ function gameLoop(now) {
   if (flameArrowsCooldown > 0) flameArrowsCooldown -= dt;
   if (flameArrowsActive > 0) flameArrowsActive -= dt;
   if (healCooldown > 0) healCooldown -= dt;
-  if (freezeCooldown > 0) freezeCooldown -= dt;
+  if (rootCooldown > 0) rootCooldown -= dt;
   window.flameArrowsCooldown = flameArrowsCooldown;
   window.flameArrowsActive = flameArrowsActive;
   window.healCooldown = healCooldown;
-  window.freezeCooldown = freezeCooldown;
-  if (freezeActive > 0) {
-    freezeActive -= dt;
-    // Freeze all enemies
+  window.rootCooldown = rootCooldown;
+  if (rootActive > 0) {
+    rootActive -= dt;
+    window.rootActive = rootActive;
+    // Root all enemies (set speed to 0 and mark as rooted)
     for (const enemy of gameState.enemies) {
+      enemy._originalSpeed = enemy._originalSpeed ?? enemy.speed;
       enemy.speed = 0;
+      enemy.rooted = true;
     }
   } else {
-    // Restore normal speed
+    // Restore normal speed if not rooted
     for (const enemy of gameState.enemies) {
-      enemy.speed = 30 + gameState.wave * 2;
+      if (enemy.rooted) {
+        enemy.speed = enemy._originalSpeed ?? (30 + gameState.wave * 2);
+        delete enemy.rooted;
+        delete enemy._originalSpeed;
+      }
     }
   }
 
@@ -681,62 +693,9 @@ function draw(now) {
 
     let enemyAnim, enemyFrame, enemyRow;
 
-    // --- Boss drawing ---
-    if (enemy.type === 'boss') {
-      let animKey = enemy.anim;
-      if (!['walk', 'attack', 'death', 'hurt'].includes(animKey)) animKey = 'walk';
-      enemyAnim = orcSprites['orc3'][animKey];
-      enemyRow = typeof enemy.direction === 'number' ? enemy.direction : 0;
-      if (animKey === 'walk' || animKey === 'hurt') {
-        enemyFrame = Math.floor((now / 100) % enemyAnim.frames);
-      } else {
-        enemyFrame = enemy.animFrame || 0;
-      }
-      ctx.drawImage(
-        enemyAnim.img,
-        enemyFrame * enemyAnim.frameWidth,
-        enemyRow * enemyAnim.frameHeight,
-        enemyAnim.frameWidth,
-        enemyAnim.frameHeight,
-        enemy.x - mobDrawSize / 2,
-        enemy.y - mobDrawSize / 2,
-        mobDrawSize,
-        mobDrawSize
-      );
-      // Draw boss title
-      ctx.save();
-      ctx.font = "bold 22px Georgia";
-      ctx.fillStyle = "#ff4444";
-      ctx.strokeStyle = "#000";
-      ctx.lineWidth = 3;
-      ctx.textAlign = "center";
-      ctx.strokeText(enemy.title || "Boss Orc", enemy.x, enemy.y - mobDrawSize / 2 - 12);
-      ctx.fillText(enemy.title || "Boss Orc", enemy.x, enemy.y - mobDrawSize / 2 - 12);
-      ctx.restore();
-
-      // Freeze overlay
-      if (freezeActive > 0) {
-        ctx.save();
-        ctx.globalAlpha = 0.45;
-        ctx.fillStyle = "#3399ff";
-        ctx.fillRect(enemy.x - mobDrawSize / 2, enemy.y - mobDrawSize / 2, mobDrawSize, mobDrawSize);
-        ctx.restore();
-      }
-      drawHpBar(
-        enemy.x - 36,
-        enemy.y - 30,
-        72,
-        10,
-        enemy.hp,
-        enemy.maxHp || 20 + gameState.wave * 5,
-        enemy.anim === 'death'
-      );
-      continue;
-    }
-
-    // --- Orcs ---
-    if (orcTypes.includes(enemy.type)) {
-      const orcType = enemy.type;
+    // --- Orcs and Boss ---
+    if (orcTypes.includes(enemy.type) || enemy.type === 'boss') {
+      const orcType = enemy.type === 'boss' ? 'orc3' : enemy.type;
       let animKey = enemy.anim;
       if (!['walk', 'attack', 'death', 'hurt'].includes(animKey)) animKey = 'walk';
       enemyAnim = orcSprites[orcType][animKey];
@@ -803,14 +762,6 @@ function draw(now) {
       ctx.restore();
     }
 
-    // Freeze blue overlay
-    if (freezeActive > 0) {
-      ctx.save();
-      ctx.globalAlpha = 0.45;
-      ctx.fillStyle = "#3399ff";
-      ctx.fillRect(enemy.x - mobDrawSize / 2, enemy.y - mobDrawSize / 2, mobDrawSize, mobDrawSize);
-      ctx.restore();
-    }
     drawHpBar(
       enemy.x - 36,
       enemy.y - 30,
@@ -820,6 +771,25 @@ function draw(now) {
       enemy.maxHp || 20 + gameState.wave * 5,
       enemy.anim === 'death'
     );
+
+    // Draw root effect on rooted enemies
+    if (enemy.rooted) {
+      ctx.save();
+      ctx.globalAlpha = 0.8;
+      const rootFrameCount = 8;
+      const rootFrameW = 72;
+      const rootFrameH = 72;
+      const frame = Math.floor((now / 83) % rootFrameCount);
+      ctx.drawImage(
+        rootSprite,
+        frame * rootFrameW, 0, rootFrameW, rootFrameH,
+        enemy.x - rootFrameW / 2,
+        enemy.y - rootFrameH / 2 - 24,
+        rootFrameW,
+        rootFrameH
+      );
+      ctx.restore();
+    }
   }
 
   // Draw projectiles (arrows, bigger)
