@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Realm of Idle Wardens</title>
+    <link rel="stylesheet" href="styles/main.css" />
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="main-div" style="display: flex; justify-content: center;">
+        <div id="leaderboard-panel" style="width:220px; margin-right:24px;">
+            <h2 style="font-size:1.3em; text-align:center; margin-bottom:8px;">Leaderboard</h2>
+            <ul id="leaderboard"
+                style="list-style:none; padding:0; margin:0; background:#f5e6c8; border-radius:10px; border:2px solid #bfa76f; min-height:300px;">
+            </ul>
+        </div>
+        <div id="arena-div" style="flex:1;">
+            <div id="auth-section">
+                <div id="auth-forms">
+                    <input id="username" type="text" placeholder="Username" />
+                    <input id="password" type="password" placeholder="Password" />
+                    <button id="login-btn">Login</button>
+                    <button id="register-btn">Register</button>
+                </div>
+                <div id="profile-section" style="display:none;">
+                    <span id="user-email"></span>
+                    <input id="new-username" placeholder="New Username" />
+                    <button id="change-username-btn">Change Username</button>
+                    <input id="new-password" type="password" placeholder="New Password" />
+                    <button id="change-password-btn">Change Password</button>
+                    <button id="delete-account-btn">Delete Account</button>
+                    <button id="logout-btn">Logout</button>
+                </div>
+            </div>
+            <div id="game-root">
+                <h1>Realm of Idle Wardens</h1>
+                <div id="hud">
+                    <span id="gold">Gold: 0</span>
+                    <span id="wave-counter" style="margin-left:12px;">0 / 0</span>
+                    <span id="wave">Wave: 1</span>
+                </div>
+                <canvas id="game-canvas" width="400" height="400"></canvas>
+                <div id="controls">
+                    <button id="upgrade-damage">Upgrade Damage (100g)</button>
+                    <button id="upgrade-hp">Upgrade HP (100g)</button>
+                    <button id="upgrade-attack-speed">Upgrade Attack Speed (100g)</button>
+                </div>
+            </div>
+            <div id="wave-popup"
+                style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; z-index:200; pointer-events:none;">
+                <div style="position:absolute; left:50%; top:40%; transform:translate(-50%,-50%); background:rgba(245,230,200,0.98); border:4px solid #bfa76f; border-radius:18px; padding:36px 64px; font-size:2.5em; color:#bfa76f; font-family:'MedievalSharp','Georgia',serif; box-shadow:0 0 32px #000a; text-align:center;"
+                    id="wave-popup-text">
+                    Wave 1
+                </div>
+            </div>
+        </div>
+        <div id="stats-panel" style="width:220px; margin-left:24px; right:32px;">
+            <h2 style="font-size:1.3em; text-align:center; margin-bottom:8px;">Stats</h2>
+            <ul id="stats-list"
+                style="list-style:none; padding:0; margin:0; background:#f5e6c8; border-radius:10px; border:2px solid #bfa76f; min-height:120px;">
+                <li style="padding:8px 12px;"><b>HP:</b> <span id="stats-hp">100/100</span></li>
+                <li style="padding:8px 12px;"><b>Damage:</b> <span id="stats-damage">10</span></li>
+                <li style="padding:8px 12px;"><b>Attack Speed:</b> <span id="stats-attack-speed">1.00</span></li>
+            </ul>
+        </div>
+    </div>
+    <div id="skills-bar">
+        <button id="skill-flame-arrows" class="skill-btn" title="Flame Arrows: Shoot burning arrows for 5s.">🔥 Flame
+            Arrows</button>
+        <button id="skill-heal" class="skill-btn" title="Heal: Restore 50% of your max HP.">💚 Heal</button>
+        <button id="skill-root" class="skill-btn" title="Roots: Immobilize all enemies for 2.5s.">🌱 Roots</button>
+    </div>
+    <script src="../src/app.js" type="module"></script>
+</body>
+
+</html>
