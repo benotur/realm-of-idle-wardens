@@ -10,7 +10,7 @@
 - **Medieval Theme**: Immerse yourself in a world of knights, mages, and mythical creatures.
 
 ## Tech Stack
-- **Frontend**: HTML, CSS, JavaScript (vanilla or React)
+- **Frontend**: HTML, CSS, JavaScript (vanilla)
 - **Backend**: Firebase (Realtime Database, Authentication)
 - **Hosting**: Firebase Hosting
 
