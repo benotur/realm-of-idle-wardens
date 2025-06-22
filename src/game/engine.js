@@ -1,5 +1,6 @@
 import { gameState } from './state.js';
 
+// Mob types for direction logic
 export const orcTypes = ['orc1', 'orc2', 'orc3'];
 export const slimeTypes = ['slime1', 'slime2', 'slime3'];
 export const mobTypes = [...orcTypes, ...slimeTypes];
@@ -12,6 +13,7 @@ function getMobGoldReward() {
   return 10 + (gameState.wave - 1) * 2;
 }
 
+// Handles spawning a new wave
 export function spawnWave(wave) {
   gameState.waveEnemiesToSpawn = 5 + wave;
   gameState.waveEnemiesSpawned = 0;
@@ -19,6 +21,7 @@ export function spawnWave(wave) {
   gameState.hero.attackCooldown = 0;
 }
 
+// Handles spawning enemies over time
 function handleWaveSpawning(dt) {
   if (
     typeof gameState.waveEnemiesToSpawn === 'number' &&
@@ -27,7 +30,6 @@ function handleWaveSpawning(dt) {
     gameState.enemySpawnTimer -= dt;
     if (gameState.enemySpawnTimer <= 0) {
       // Boss wave logic
-        // Spawn boss
       if (gameState.wave % 10 === 0 && !gameState.enemies.some(e => e.type === 'boss')) {
         gameState.enemies.push({
           type: 'boss',
@@ -101,6 +103,7 @@ export function updateGame(dt) {
         enemy.hp -= enemy.burn.dps;
         if (window.showFloatingDamage) window.showFloatingDamage(enemy.x, enemy.y, "-" + enemy.burn.dps);
         enemy.burn.tick = 0;
+        // Play hurt animation if not dying or attacking (don't interrupt attack)
         if (
           enemy.hp > 0 &&
           enemy.anim !== 'death' &&
@@ -124,6 +127,7 @@ export function updateGame(dt) {
         enemy.animTimer = 0;
         if (enemy.animFrame >= hurtFrames) {
           enemy.animPlaying = false;
+          // After hurt, if in attack range and can attack, attack
           if (
             dist <= 5 &&
             enemy.attackCooldown <= 0 &&
@@ -135,7 +139,6 @@ export function updateGame(dt) {
             enemy.animPlaying = true;
             enemy.attackCooldown = 1;
             gameState.hero.hp -= enemy.attack;
-
             if (enemy.appliesBurn) {
               if (!gameState.hero.burn) gameState.hero.burn = { time: 3, dps: 5 };
               else gameState.hero.burn.time = 3;
@@ -200,7 +203,6 @@ export function updateGame(dt) {
         enemy.animPlaying = true;
         enemy.attackCooldown = 1;
         gameState.hero.hp -= enemy.attack;
-
         if (enemy.appliesBurn) {
           if (!gameState.hero.burn) gameState.hero.burn = { time: 3, dps: 5 };
           else gameState.hero.burn.time = 3;
@@ -214,7 +216,6 @@ export function updateGame(dt) {
   gameState.enemies = gameState.enemies.filter(e => !(e.anim === 'death' && !e.animPlaying));
 
   // --- Hero attack logic ---
-
   gameState.hero.attackCooldown -= dt;
   if (gameState.hero.attackCooldown <= 0) {
     let minDist = Infinity;
@@ -227,7 +228,6 @@ export function updateGame(dt) {
       }
     }
     if (target) {
-
       if (minDist > 60 && minDist < 300) {
         if (window.queueHeroAnimation) window.queueHeroAnimation('attack3');
         if (!gameState.arrows) gameState.arrows = [];
@@ -301,7 +301,6 @@ export function updateGame(dt) {
           if (window.saveProgress) window.saveProgress();
         }
         if (window.showFloatingDamage) window.showFloatingDamage(enemy.x, enemy.y, "-" + arrow.damage);
-
         if (arrow.flame && !enemy.burnImmune) {
           enemy.burn = { time: 3, dps: 5 };
         }

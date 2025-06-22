@@ -238,7 +238,6 @@ auth.onAuthStateChanged(user => {
         gameState.hero.attackSpeed = progress.attackSpeed || 1;
         gameState.upgradeLevels = progress.upgradeLevels || { damage: 0, hp: 0, attackSpeed: 0 };
       }
-
       spawnWave(gameState.wave);
       startGame();
       loadLeaderboard();
