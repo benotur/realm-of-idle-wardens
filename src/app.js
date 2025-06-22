@@ -1,7 +1,8 @@
 import { auth, db } from './firebase.js';
-import { gameState } from './game/state.js';
+import { gameState, heroSkills } from './game/state.js';
 import { updateUI } from './game/ui.js';
 import { updateGame, spawnWave } from './game/engine.js';
+import './game/ui.js'; // For skill tree UI
 
 // --- Firebase Auth UI Elements ---
 const authSection = document.getElementById('auth-section');
@@ -88,19 +89,6 @@ let heroAnimTimer = 0;
 let heroAnimPlaying = false;
 let heroAnimQueue = [];
 
-function showWavePopup(wave) {
-  const popup = document.getElementById('wave-popup');
-  const popupText = document.getElementById('wave-popup-text');
-  if (popup && popupText) {
-    popupText.textContent = `Wave ${wave}`;
-    popup.style.display = 'block';
-    setTimeout(() => {
-      popup.style.display = 'none';
-    }, 1500); // Show for 1.5 seconds
-  }
-}
-window.showWavePopup = showWavePopup;
-
 // --- Floating Gold, Damage & Heal Logic ---
 let floatingGolds = [];
 let floatingDamages = [];
@@ -137,7 +125,12 @@ function saveProgress() {
       maxHp: gameState.hero.maxHp,
       damage: gameState.hero.attack,
       attackSpeed: gameState.hero.attackSpeed,
-      upgradeLevels: gameState.upgradeLevels
+      upgradeLevels: gameState.upgradeLevels,
+      heroLevel: gameState.hero.level,
+      heroXp: gameState.hero.xp,
+      heroXpToNext: gameState.hero.xpToNext,
+      heroSkillPoints: gameState.hero.skillPoints,
+      heroSkills: heroSkills
     });
     loadLeaderboard();
   }
@@ -237,6 +230,11 @@ auth.onAuthStateChanged(user => {
         gameState.hero.attack = progress.damage || 10;
         gameState.hero.attackSpeed = progress.attackSpeed || 1;
         gameState.upgradeLevels = progress.upgradeLevels || { damage: 0, hp: 0, attackSpeed: 0 };
+        gameState.hero.level = progress.heroLevel || 1;
+        gameState.hero.xp = progress.heroXp || 0;
+        gameState.hero.xpToNext = progress.heroXpToNext || 100;
+        gameState.hero.skillPoints = progress.heroSkillPoints || 0;
+        if (progress.heroSkills) Object.assign(heroSkills, progress.heroSkills);
       }
       spawnWave(gameState.wave);
       startGame();
@@ -404,7 +402,7 @@ window.spawnEnemy = function () {
   let appliesBurn = false;
   let title = "";
 
-   // --- Orcs ---
+  // --- Orcs ---
   if (type === 'orc1') {
     size = 100;
     title = "Orc Grunt";
@@ -626,43 +624,6 @@ window.healCooldown = healCooldown;
 window.rootCooldown = rootCooldown;
 window.rootActive = rootActive;
 
-function useFlameArrows() {
-  if (flameArrowsCooldown > 0 || gameState.gold < 50) return;
-  gameState.gold -= 50;
-  flameArrowsCooldown = 12;
-  flameArrowsActive = 5;
-  window.flameArrowsCooldown = flameArrowsCooldown;
-  window.flameArrowsActive = flameArrowsActive;
-  updateUI();
-  saveProgress();
-}
-function useHeal() {
-  if (healCooldown > 0 || gameState.gold < 40) return;
-  gameState.gold -= 40;
-  healCooldown = 12;
-  window.healCooldown = healCooldown;
-  const healAmount = Math.floor(gameState.hero.maxHp * 0.5);
-  gameState.hero.hp = Math.min(gameState.hero.maxHp, gameState.hero.hp + healAmount);
-  if (window.showFloatingHeal) window.showFloatingHeal(gameState.hero.x, gameState.hero.y - 40, "+" + healAmount);
-  updateUI();
-  saveProgress();
-}
-function useRoot() {
-  if (rootCooldown > 0 || gameState.gold < 70) return;
-  gameState.gold -= 70;
-  rootCooldown = 18;
-  rootActive = 2.5; // 2.5 seconds root
-  window.rootCooldown = rootCooldown;
-  window.rootActive = rootActive;
-  updateUI();
-  saveProgress();
-}
-
-// Attach to buttons
-document.getElementById('skill-flame-arrows').onclick = useFlameArrows;
-document.getElementById('skill-heal').onclick = useHeal;
-document.getElementById('skill-root').onclick = useRoot;
-
 function gameLoop(now) {
   if (!gameRunning) return;
   const dt = (now - lastTime) / 1000;
@@ -768,6 +729,17 @@ function draw(now) {
       );
     }
   }
+
+  // --- Draw hero level above hero ---
+  ctx.save();
+  ctx.font = "bold 20px Georgia";
+  ctx.fillStyle = "#ffd700";
+  ctx.strokeStyle = "#000";
+  ctx.lineWidth = 3;
+  ctx.textAlign = "center";
+  ctx.strokeText(`Lv. ${gameState.hero.level}`, gameState.hero.x, gameState.hero.y - heroDrawSize / 2 + 40);
+  ctx.fillText(`Lv. ${gameState.hero.level}`, gameState.hero.x, gameState.hero.y - heroDrawSize / 2 + 40);
+  ctx.restore();
 
   // Draw hero HP bar
   drawHpBar(
@@ -900,7 +872,7 @@ function draw(now) {
       drawSpriteFlipped(
         arrowSprite,
         arrow.x - 30,
-        arrow.y - 80,
+        arrow.y - 50,
         60,
         60,
         0,
@@ -910,7 +882,7 @@ function draw(now) {
       drawSprite(
         arrowSprite,
         arrow.x - 30,
-        arrow.y - 80,
+        arrow.y - 50,
         60,
         60,
         0,

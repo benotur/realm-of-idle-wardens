@@ -74,12 +74,15 @@
             </ul>
         </div>
     </div>
-    <div id="skills-bar">
-        <button id="skill-flame-arrows" class="skill-btn" title="Flame Arrows: Shoot burning arrows for 5s.">🔥 Flame
-            Arrows</button>
-        <button id="skill-heal" class="skill-btn" title="Heal: Restore 50% of your max HP.">💚 Heal</button>
-        <button id="skill-root" class="skill-btn" title="Roots: Immobilize all enemies for 2.5s.">🌱 Roots</button>
+    <div id="skill-tree-overlay" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; z-index:300; background:rgba(0,0,0,0.7);">
+      <div id="skill-tree-panel" style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); background:#f5e6c8; border:4px solid #bfa76f; border-radius:18px; padding:32px 48px; min-width:340px; min-height:320px;">
+        <h2 style="text-align:center; color:#bfa76f;">Skill Tree</h2>
+        <div id="skill-tree-list"></div>
+        <button id="close-skill-tree" style="margin-top:18px; display:block; margin-left:auto; margin-right:auto;">Close</button>
+      </div>
     </div>
+    <button id="open-skill-tree" style="position:fixed; left:32px; bottom:32px; z-index:301; font-size:1.3em; background:#ffe7a0; border:2px solid #bfa76f; border-radius:10px; padding:12px 28px; font-family:'EB Garamond',serif; font-weight:bold; cursor:pointer;">🧬 Skill Tree</button>
+
     <script src="../src/app.js" type="module"></script>
 </body>
 

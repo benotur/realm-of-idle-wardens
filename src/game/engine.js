@@ -10,7 +10,9 @@ function distance(a, b) {
 }
 
 function getMobGoldReward() {
-  return 10 + (gameState.wave - 1) * 2;
+  let base = 10 + (gameState.wave - 1) * 2;
+  if (gameState.hero.goldBonus) base = Math.floor(base * (1 + gameState.hero.goldBonus));
+  return base;
 }
 
 // Handles spawning a new wave
@@ -72,6 +74,25 @@ export function updateGame(dt) {
     }
     if (gameState.hero.burn.time <= 0) {
       delete gameState.hero.burn;
+    }
+  }
+
+  // --- Award XP for enemy kills and handle level up ---
+  for (const enemy of gameState.enemies) {
+    if (enemy.hp <= 0 && !enemy._xpGiven) {
+      enemy._xpGiven = true;
+      // Award XP: 10 for normal, 50 for boss
+      const xpGain = enemy.type === 'boss' ? 50 : 10;
+      gameState.hero.xp += xpGain;
+      // Level up if enough XP
+      while (gameState.hero.xp >= gameState.hero.xpToNext) {
+        gameState.hero.xp -= gameState.hero.xpToNext;
+        gameState.hero.level += 1;
+        gameState.hero.skillPoints += 1; // 1 skill point per level
+        // Increase XP needed for next level (scaling)
+        gameState.hero.xpToNext = Math.floor(gameState.hero.xpToNext * 1.2 + 20);
+        if (window.showFloatingHeal) window.showFloatingHeal(gameState.hero.x, gameState.hero.y - 60, "LEVEL UP!");
+      }
     }
   }
 
